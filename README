@@ -1,0 +1,124 @@
+little_pger.py manual
+=====================
+
+Christian Jauvin <cjauvin@gmail.com>
+Created in January 2011
+Updated in September 2011
+
+A small set of functions meant to help with common PostgreSQL/Psycopg2
+commands, by wrapping up a few things handily, with a coherent and
+pythonic interface.
+
+Say we have a PG table like this:
+
+create table document (
+  document_id serial primary key,
+  title text,
+  type text check (type in ('book', 'article', 'essay'),
+  topics text[]
+);
+
+and a pair of connection/cursor objects:
+
+>>> conn = psycopg2.connect('dbname=...')
+>>> cur = conn.cursor()
+
+You can then insert a new document record like this:
+
+>>> insert(cur, 'document', values={'title':'PG is Easy'})
+
+and update it like this:
+
+>>> update(cur, 'document', set={'type':'article'}, where={'title':'PG is Easy'})
+
+Note that you are still responsible for managing any transactions
+externally:
+
+>>> conn.commit()
+
+With the 'return_id' option (which restricts the default 'returning *'
+clause to the primary key's value, which is assumed to be named
+'<table>_id'), the insert/update above could also be done this way:
+
+>>> doc_id = insert(cur, 'document', values={'title':'PG is Easy'}, return_id=True)
+>>> update(cur, 'document', values={'type':'article'}, where={'document_id':doc_id})
+
+Note that the 'set' or 'values' keywords can both be used with
+'update'. Using a tuple (but not a list!) as a value in the 'where'
+dict param is translated to the proper SQL 'in' operator (see the
+Psycopg2 doc for these particular syntactic aspects):
+
+>>> select(cur, 'document', where={'type':('article', 'book')})
+
+will return all article or book documents, whereas:
+
+>>> select(cur, 'document', what='title', where={'type':('article', 'book')})
+
+will only get their titles.
+
+Using a list (but not a tuple!) as a value in either the 'values' or
+'where' dict params is translated to the proper SQL array syntax (see
+the Psycopg2 doc for these particular syntactic aspects):
+
+>>> update(cur, 'document', set={'topics':['database', 'programming']}, where={'document_id':doc_id})
+>>> select(cur, 'document', where={'topics':['database', 'programming']})
+
+The 'filter_values' option is useful if you do not wish to care about
+the exact values sent to the function. This for instance would fail:
+
+>>> insert(cur, 'document', values={'title':'PG is Easy', 'author':'John Doe'})
+
+because there is no 'author' column in our document table. This
+however would work:
+
+>>> insert(cur, 'document', values={'title':'PG is Easy', 'author':'John Doe'}, filter_values=True)
+
+because it trims any extra items in 'values' (i.e. corresponding to
+columns not belonging to the table). Please note that since this
+option requires an extra SQL query, it makes a single call a little
+less efficient. 
+
+You can always append additional projection elements to a select query
+with the 'what' argument (which can be a string, a list or a dict,
+depending on your needs):
+
+>>> select(cur, 'document', what={'*':1, 'title is not null':'has_title'})
+
+will be translated as: 
+
+select *, title is not null as has_title from document
+
+Similarly, by using the group_by argument:
+
+>>> select(cur, 'document', what=['type', 'count(*)'], group_by='type')
+
+will yield:
+
+select type, count(*) from document group by type
+
+A select query can also be called with 'order_by', 'limit' and
+'offset' optional arguments. You can also restrict the results to only
+one row by using the 'rows' argument (default is rows='all'):
+
+>>> select(cur, 'document', where={'type':'article'}, rows='one')
+
+would return directly a document row (and not a list of rows), and
+would actually throw an assertion exception if there was more than one
+article in the document table.
+
+Here is a summary of the functions provided by little_pger, along
+with their underlying SQL interpretation:
+
+* select: select * from .. where ..
+* select1: select <col> from .. where .. (assuming only one row, same as what=col, rows='one')
+* select1r: select * from .. where .. (assuming only one row, same as rows='one')
+* selectId: select <pkey> from .. where .. (assuming only one row, same as what=pkey, rows='one')
+* insert: insert into .. (..) values (..)
+* update: update .. set (..) = (..) where .. [returning *]
+* delete: delete from .. where ..
+* count: select count(*) from .. where ..
+* exists: count >= 1
+* getCurrentPKeyValue: select currval(<pkey_seq>)
+* getNextPKeyValue: select nextval(<pkey_seq>)
+* getNullableColumns: columns that can be set to null
+
