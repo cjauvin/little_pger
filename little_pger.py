@@ -1,12 +1,15 @@
 """PostgreSQL/Psycopg2 helper "modulet" for common single table commands (select, insert, update, etc).
 
-Created by Christian Jauvin <cjauvin@gmail.com>
-January 2011
+Christian Jauvin <cjauvin@gmail.com>
+Created in January 2011
 Updated in September 2011
 
 """
 
-import psycopg2.extras
+try:
+    import psycopg2.extras
+except ImportError:
+    exit("Problem: the psycopg2 module doesn't seem to be available..")
     
 
 def select(cursor, table, **kw):
