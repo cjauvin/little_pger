@@ -2,7 +2,7 @@
 
 Christian Jauvin <cjauvin@gmail.com>
 Created in January 2011
-Updated in September 2011
+Updated in February 2012
 
 """
 
@@ -11,7 +11,6 @@ try:
 except ImportError:
     exit("Problem: the psycopg2 module doesn't seem to be available..")
     
-
 def select(cursor, table, **kw):
     """SQL select statement helper.
 
@@ -77,7 +76,6 @@ def select(cursor, table, **kw):
         if results: return results[0]
         else: return None
 
-
 def select1(cursor, table, column, **kw):
     """SQL select statement helper (syntactic sugar for single value select call).
 
@@ -98,7 +96,6 @@ def select1(cursor, table, column, **kw):
         return value[column if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
     else: 
         return None
-
 
 def select1r(cursor, table, **kw):
     """SQL select statement helper (syntactic sugar for single row select call).
@@ -127,7 +124,6 @@ def select1r(cursor, table, **kw):
     assert set(kw.keys()).issubset(set(['what','where','order_by','group_by','limit','offset','debug_print','debug_assert','_count'])), 'unknown keyword in pgsql_helper.select1r'
     return select(cursor, table, rows='one', **kw)
 
-
 def selectId(cursor, table, **kw):
     """SQL select statement helper (fetch primary key value, assuming only one row).
 
@@ -146,7 +142,6 @@ def selectId(cursor, table, **kw):
     assert set(kw.keys()).issubset(set(['where','pkey_name','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.selectId'
     pkey_name = kw.pop('pkey_name', '%s_id' % table)
     return select1(cursor, table, pkey_name, **kw)
-
 
 def insert(cursor, table, **kw):
     """SQL insert statement helper, by default with a "returning *" clause.
@@ -173,8 +168,7 @@ def insert(cursor, table, **kw):
         q = "insert into %s default values returning *" % table
     else:
         if kw.pop('filter_values', False):
-            cursor.execute('select * from %s where 1=0' % table)
-            columns = [rec[0] for rec in cursor.description]
+            columns = getColumns(cursor, table)
             values = dict([(c, v) for c, v in values.items() if c in columns])
         q = "insert into %s (%s) values (%s) returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))    
     _execQuery(cursor, q, values.values(), **kw)
@@ -183,8 +177,7 @@ def insert(cursor, table, **kw):
         return returning['%s_id' % table if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
     else:
         return returning
-
-
+    
 def update(cursor, table, **kw):
     """SQL update statement helper, with a "returning *" clause.
 
@@ -205,8 +198,7 @@ def update(cursor, table, **kw):
     values = kw.pop('values', kw.pop('set', None))
     where = kw.pop('where', {})    
     if kw.pop('filter_values', False):
-        cursor.execute('select * from %s where 1=0' % table)
-        columns = [rec[0] for rec in cursor.description]
+        columns = getColumns(cursor, table)
         values = dict([(c, v) for c, v in values.items() if c in columns])
     if not values: return
     if where:
@@ -216,7 +208,6 @@ def update(cursor, table, **kw):
         q = "update %s set (%s) = (%s) returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))
     _execQuery(cursor, q, values.values() + where.values(), **kw)
     return cursor.fetchone()
-
 
 def delete(cursor, table, **kw):
     """SQL delete statement helper.
@@ -241,7 +232,6 @@ def delete(cursor, table, **kw):
         q = "delete from %s" % table
     _execQuery(cursor, q, where.values(), **kw)
 
-
 def count(cursor, table, **kw):
     """SQL select count statement helper.
 
@@ -260,7 +250,6 @@ def count(cursor, table, **kw):
     row = select(cursor, table, what='count(*)', rows='one', **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
-
 def exists(cursor, table, **kw):
     """Check whether at least one record exists.
 
@@ -277,7 +266,6 @@ def exists(cursor, table, **kw):
     """    
     assert set(kw.keys()).issubset(set(['where','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.exists'
     return select(cursor, table, limit=1, rows='one', **kw) is not None
-
 
 def getCurrentPKeyValue(cursor, table, **kw):
     """Current value of the primary key.
@@ -299,7 +287,6 @@ def getCurrentPKeyValue(cursor, table, **kw):
     _execQuery(cursor, "select currval(%s)", [pkey_seq_name], **kw)
     return cursor.fetchone()['currval' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
-
 def getNextPKeyValue(cursor, table, pkey_seq_name=None):
     """Next value of the primary key.
 
@@ -319,7 +306,6 @@ def getNextPKeyValue(cursor, table, pkey_seq_name=None):
     pkey_seq_name = kw.pop('pkey_seq_name', '%s_%s_id_seq' % (table, table))
     _execQuery(cursor, "select nextval(%s)", [pkey_seq_name], **kw)
     return cursor.fetchone()['nextval' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
-
 
 def getNullableColumns(cursor, table):
     """Return all nullable columns.
@@ -343,6 +329,16 @@ def getNullableColumns(cursor, table):
         if row['is_nullable'] == 'YES': nullable_columns.append(row['column_name'])
     return nullable_columns
 
+def getColumns(cursor, table):
+    """Return all columns.
+
+    Mandatory positional arguments:
+    cursor -- the cursor
+    table -- name of the table
+
+    """
+    cursor.execute('select * from %s where 1=0' % table)
+    return [rec[0] for rec in cursor.description]
 
 def _execQuery(cursor, query, qvalues=[], **kw):
     """(Internal, should not be used) Execute a query.
