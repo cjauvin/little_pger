@@ -2,7 +2,6 @@
 
 Christian Jauvin <cjauvin@gmail.com>
 Created in January 2011
-Updated in February 2012
 
 """
 
@@ -21,8 +20,9 @@ def _getWhereClauseCompItem(c, v):
     return (c, '=')
 
 
-def _getWhereClause(items):
-    return " and ".join(['%s %s %%s' % _getWhereClauseCompItem(c, v) for c, v in items])
+def _getWhereClause(items, type='and'):
+    assert type in ('and', 'or')
+    return (" %s " % type).join(['%s %s %%s' % _getWhereClauseCompItem(c, v) for c, v in items])
             
 
 def select(cursor, table, **kw):
@@ -39,7 +39,8 @@ def select(cursor, table, **kw):
       ex3: what='max(price)' --> "select max(price) from .."
       ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
       ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
     order_by -- order by clause (str or list, default None)
     group_by -- group by clause (str or list, default None)
     limit -- limit clause (default None)
@@ -50,13 +51,16 @@ def select(cursor, table, **kw):
                     useful for web dev debugging (default False)
     
     """
-    assert set(kw.keys()).issubset(set(['what','where','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in pgsql_helper.select'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
     what = kw.pop('what', '*')
     where = kw.pop('where', {})
+    where_or = kw.pop('where_or', {})
+    order_by = kw.pop('order_by', None)
+    group_by = kw.pop('group_by', None)
+    limit = kw.pop('limit', None)
+    offset = kw.pop('offset', None)
     rows = kw.pop('rows', 'all')
-    assert rows in ['all', 'one']
-    #q = "set transform_null_equals to on; "
-    q = ''
+    assert rows in ('all', 'one')
     proj_items = []
     if what: 
         if isinstance(what, dict): 
@@ -65,25 +69,25 @@ def select(cursor, table, **kw):
             proj_items = [what]
         else: 
             proj_items = list(what)
+    q = "select %s from %s" % (', '.join(proj_items), table)
     if where:
-        #where_clause = " and ".join(['%s %s %%s' % (c, 'in' if isinstance(v, tuple) else '=') for c, v in where.items()])
         where_clause = _getWhereClause(where.items())
-        q += "select %s from %s where %s" % (', '.join(proj_items), table, where_clause)
-    else:
-        q += "select %s from %s" % (', '.join(proj_items), table)
-    order_by = kw.pop('order_by', None)
+        q += " where %s" % where_clause
+    if where_or:
+        where_or_clause = _getWhereClause(where_or.items(), 'or')
+        if where:
+            q += ' and (%s)' % where_or_clause
+        else:
+            q += ' where %s' % where_or_clause        
     if order_by: 
         if isinstance(order_by, basestring): q += ' order by %s' % order_by
         else: q += ' order by %s' % ', '.join([e for e in order_by])
-    group_by = kw.pop('group_by', None)
     if group_by: 
         if isinstance(group_by, basestring): q += ' group by %s' % group_by
         else: q += ' group by %s' % ', '.join([e for e in group_by])
-    limit = kw.pop('limit', None)
     if limit: q += ' limit %s' % limit
-    offset = kw.pop('offset', None)
     if offset: q += ' offset %s' % offset
-    _execQuery(cursor, q, where.values(), **kw)
+    _execQuery(cursor, q, where.values() + where_or.values(), **kw)
     results = cursor.fetchall()
     if rows == 'all':
         return results
@@ -102,12 +106,13 @@ def select1(cursor, table, column, **kw):
     column -- name of the column
 
     Optional keyword arguments:
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
     """                 
-    assert set(kw.keys()).issubset(set(['where', 'debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.select1'
+    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in select1'
     value = select(cursor, table, what=column, rows='one', **kw)
     if value:
         return value[column if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
@@ -129,7 +134,8 @@ def select1r(cursor, table, **kw):
       ex3: what='max(price)' --> "select max(price) from .."
       ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
       ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
     order_by -- order by clause (str or list, default None)
     group_by -- group by clause (str or list, default None)
     limit -- limit clause (default None)
@@ -139,7 +145,7 @@ def select1r(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """                 
-    assert set(kw.keys()).issubset(set(['what','where','order_by','group_by','limit','offset','debug_print','debug_assert','_count'])), 'unknown keyword in pgsql_helper.select1r'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','debug_print','debug_assert','_count'])), 'unknown keyword in select1r'
     return select(cursor, table, rows='one', **kw)
 
 
@@ -151,14 +157,15 @@ def selectId(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
     pkey_name -- if None (default), assume that the primary key name has the form "<table>_id"
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['where','pkey_name','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.selectId'
+    assert set(kw.keys()).issubset(set(['where','where_or','pkey_name','debug_print','debug_assert'])), 'unknown keyword in selectId'
     pkey_name = kw.pop('pkey_name', '%s_id' % table)
     return select1(cursor, table, pkey_name, **kw)
 
@@ -181,7 +188,7 @@ def insert(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['values','filter_values','return_id','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.insert'
+    assert set(kw.keys()).issubset(set(['values','filter_values','return_id','debug_print','debug_assert'])), 'unknown keyword in insert'
     values = kw.pop('values', {})
     return_id = kw.pop('return_id', False)
     if not values:
@@ -208,27 +215,33 @@ def update(cursor, table, **kw):
 
     Optional keyword arguments:
     set|values -- dict with values to set (either keyword works; default empty)
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
     filter_values -- if True, trim values so that it contains only columns found in table (default False)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['set','values','where','filter_values','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.update'
+    assert set(kw.keys()).issubset(set(['set','values','where','where_or','filter_values','debug_print','debug_assert'])), 'unknown keyword in update'
     values = kw.pop('values', kw.pop('set', None))
     where = kw.pop('where', {})    
+    where_or = kw.pop('where_or', {})    
     if kw.pop('filter_values', False):
         columns = getColumns(cursor, table)
         values = dict([(c, v) for c, v in values.items() if c in columns])
-    if not values: return
+    q = 'update %s set (%s) = (%s)' % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))
     if where:
-        #where_clause = " and ".join(['%s %s %%s' % (c, 'in' if isinstance(v, tuple) else '=') for c, v in where.items()])
         where_clause = _getWhereClause(where.items())
-        q = "update %s set (%s) = (%s) where %s returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]), where_clause)
-    else:
-        q = "update %s set (%s) = (%s) returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))
-    _execQuery(cursor, q, values.values() + where.values(), **kw)
+        q += " where %s" % where_clause
+    if where_or:
+        where_or_clause = _getWhereClause(where_or.items(), 'or')
+        if where:
+            q += ' and (%s)' % where_or_clause
+        else:
+            q += ' where %s' % where_or_clause        
+    q += ' returning *'
+    _execQuery(cursor, q, values.values() + where.values() + where_or.values(), **kw)
     return cursor.fetchone()
 
 
@@ -240,21 +253,27 @@ def delete(cursor, table, **kw):
     table -- name of the table
     
     Optional keyword arguments:
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['where','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.delete'
+    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in delete'
     where = kw.pop('where', {})
+    where_or = kw.pop('where_or', {})
+    q = "delete from %s" % table
     if where:
-        #where_clause = " and ".join(['%s %s %%s' % (c, 'in' if isinstance(v, tuple) else '=') for c, v in where.items()])
         where_clause = _getWhereClause(where.items())
-        q = "delete from %s where %s" % (table, where_clause)
-    else:
-        q = "delete from %s" % table
-    _execQuery(cursor, q, where.values(), **kw)
+        q += " where %s" % where_clause
+    if where_or:
+        where_or_clause = _getWhereClause(where_or.items(), 'or')
+        if where:
+            q += ' and (%s)' % where_or_clause
+        else:
+            q += ' where %s' % where_or_clause
+    _execQuery(cursor, q, where.values() + where_or.values(), **kw)
 
 
 def count(cursor, table, **kw):
@@ -265,13 +284,15 @@ def count(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
+    order_by -- order by clause (str or list, default None)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """    
-    assert set(kw.keys()).issubset(set(['where','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.count'
+    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
     row = select(cursor, table, what='count(*)', rows='one', **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
@@ -284,13 +305,14 @@ def exists(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
-    where -- where clause dict (default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """    
-    assert set(kw.keys()).issubset(set(['where','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.exists'
+    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in exists'
     return select(cursor, table, limit=1, rows='one', **kw) is not None
 
 
@@ -309,7 +331,7 @@ def getCurrentPKeyValue(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['pkey_seq_name','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.getCurrentPKeyValue'
+    assert set(kw.keys()).issubset(set(['pkey_seq_name','debug_print','debug_assert'])), 'unknown keyword in getCurrentPKeyValue'
     pkey_seq_name = kw.pop('pkey_seq_name', '%s_%s_id_seq' % (table, table))
     _execQuery(cursor, "select currval(%s)", [pkey_seq_name], **kw)
     return cursor.fetchone()['currval' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
@@ -330,7 +352,7 @@ def getNextPKeyValue(cursor, table, pkey_seq_name=None):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['pkey_seq_name','debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.getNextPKeyValue'
+    assert set(kw.keys()).issubset(set(['pkey_seq_name','debug_print','debug_assert'])), 'unknown keyword in getNextPKeyValue'
     pkey_seq_name = kw.pop('pkey_seq_name', '%s_%s_id_seq' % (table, table))
     _execQuery(cursor, "select nextval(%s)", [pkey_seq_name], **kw)
     return cursor.fetchone()['nextval' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
@@ -349,7 +371,7 @@ def getNullableColumns(cursor, table):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['debug_print','debug_assert'])), 'unknown keyword in pgsql_helper.getNullableColumns'
+    assert set(kw.keys()).issubset(set(['debug_print','debug_assert'])), 'unknown keyword in getNullableColumns'
     _execQuery(cursor, "select * from information_schema.columns where table_name = %s", [table], **kw)
     nullable_columns = []
     for row in cursor.fetchall():
@@ -386,7 +408,7 @@ def _execQuery(cursor, query, qvalues=[], **kw):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['debug_print','debug_assert'])), 'unknown keyword in pgsql_helper._execQuery'
+    assert set(kw.keys()).issubset(set(['debug_print','debug_assert'])), 'unknown keyword in _execQuery'
 
     query = "set transform_null_equals to on; " + query
     if kw.get('debug_print', False):
