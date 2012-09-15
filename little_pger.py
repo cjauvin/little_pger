@@ -305,6 +305,7 @@ def exists(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
+    what -- projection items (str, list or dict, default '*')    
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
     debug_print -- print query before executing it (default False)
@@ -312,7 +313,7 @@ def exists(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """    
-    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in exists'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','debug_print','debug_assert'])), 'unknown keyword in exists'
     return select(cursor, table, limit=1, rows='one', **kw) is not None
 
 
@@ -402,12 +403,12 @@ def _execQuery(cursor, query, qvalues=[], **kw):
     qvalues -- query value list (default empty)
 
     Optional keyword arguments:
-    transform_null_equals -- prepend 'set transform_null_equals to on' to query (default True)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
+    # Should I add a switch to prevent setting transform_null_equals to on?
     assert set(kw.keys()).issubset(set(['debug_print','debug_assert'])), 'unknown keyword in _execQuery'
 
     query = "set transform_null_equals to on; " + query
