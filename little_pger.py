@@ -4,6 +4,7 @@
 
 """
 
+import itertools
 try:
     import psycopg2.extras
 except ImportError:
@@ -39,6 +40,7 @@ def select(cursor, table, **kw):
     #   ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
     # where -- AND-joined where clause dict (default empty)
     # where_or -- OR-joined where clause dict (default empty)
+    # where_cartpow -- cartesian power of columns ^ values AND clauses, ORed together (tuple ([columns], op, [values]), default empty)
     # order_by -- order by clause (str or list, default None)
     # group_by -- group by clause (str or list, default None)
     # limit -- limit clause (default None)
@@ -49,10 +51,11 @@ def select(cursor, table, **kw):
     #                 useful for web dev debugging (default False)
     
     # """
-    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','where_cartpow','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
     what = kw.pop('what', '*')
     where = kw.pop('where', {})
     where_or = kw.pop('where_or', {})
+    where_cartpow = kw.pop('where_cartpow', [])
     order_by = kw.pop('order_by', None)
     group_by = kw.pop('group_by', None)
     limit = kw.pop('limit', None)
@@ -76,7 +79,20 @@ def select(cursor, table, **kw):
         if where:
             q += ' and (%s)' % where_or_clause
         else:
-            q += ' where %s' % where_or_clause        
+            q += ' where %s' % where_or_clause
+    where_cartpow_values = []
+    if where_cartpow:
+        assert not where and not where_or, 'where_cartpow can only be used alone (i.e. not with where/where_or)'
+        assert isinstance(where_cartpow, tuple) and len(where_cartpow) == 3, 'where_cartpow should be: ([columns], op, [values])'
+        cols, op, vals = where_cartpow
+        outer_or_clauses = []
+        for p in itertools.product(cols, repeat=len(vals)):
+            inner_and_clauses = []
+            for i, col in enumerate(p):
+                inner_and_clauses.append('%s %s %%s' % (col, op))
+                where_cartpow_values.append(vals[i])
+            outer_or_clauses.append('(%s)' % ' and '.join(inner_and_clauses))
+        q += ' where %s' % ' or '.join(outer_or_clauses)
     if order_by: 
         if isinstance(order_by, basestring): q += ' order by %s' % order_by
         else: q += ' order by %s' % ', '.join([e for e in order_by])
@@ -85,7 +101,7 @@ def select(cursor, table, **kw):
         else: q += ' group by %s' % ', '.join([e for e in group_by])
     if limit: q += ' limit %s' % limit
     if offset: q += ' offset %s' % offset
-    _execQuery(cursor, q, where.values() + where_or.values(), **kw)
+    _execQuery(cursor, q, where.values() + where_or.values() + where_cartpow_values, **kw)
     results = cursor.fetchall()
     if rows == 'all':
         return results
@@ -106,11 +122,12 @@ def select1(cursor, table, column, **kw):
     Optional keyword arguments:
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
+    where_cartpow -- cartesian power of columns ^ values AND clauses, ORed together (tuple ([columns], op, [values]), default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
     """                 
-    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in select1'
+    assert set(kw.keys()).issubset(set(['where','where_or','where_cartpow','debug_print','debug_assert'])), 'unknown keyword in select1'
     value = select(cursor, table, what=column, rows='one', **kw)
     if value:
         return value[column if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
@@ -134,6 +151,7 @@ def select1r(cursor, table, **kw):
       ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
+    where_cartpow -- cartesian power of columns ^ values AND clauses, ORed together (tuple ([columns], op, [values]), default empty)
     order_by -- order by clause (str or list, default None)
     group_by -- group by clause (str or list, default None)
     limit -- limit clause (default None)
@@ -143,7 +161,7 @@ def select1r(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """                 
-    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','debug_print','debug_assert','_count'])), 'unknown keyword in select1r'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','where_cartpow','order_by','group_by','limit','offset','debug_print','debug_assert','_count'])), 'unknown keyword in select1r'
     return select(cursor, table, rows='one', **kw)
 
 
@@ -157,13 +175,14 @@ def selectId(cursor, table, **kw):
     Optional keyword arguments:
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
+    where_cartpow -- cartesian power of columns ^ values AND clauses, ORed together (tuple ([columns], op, [values]), default empty)
     pkey_name -- if None (default), assume that the primary key name has the form "<table>_id"
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['where','where_or','pkey_name','debug_print','debug_assert'])), 'unknown keyword in selectId'
+    assert set(kw.keys()).issubset(set(['where','where_or','where_cartpow','pkey_name','debug_print','debug_assert'])), 'unknown keyword in selectId'
     pkey_name = kw.pop('pkey_name', '%s_id' % table)
     return select1(cursor, table, pkey_name, **kw)
 
@@ -284,13 +303,14 @@ def count(cursor, table, **kw):
     Optional keyword arguments:
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
+    where_cartpow -- cartesian power of columns ^ values AND clauses, ORed together (tuple ([columns], op, [values]), default empty)
     order_by -- order by clause (str or list, default None)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """    
-    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
+    assert set(kw.keys()).issubset(set(['where','where_or','where_cartpow','debug_print','debug_assert'])), 'unknown keyword in count'
     row = select(cursor, table, what='count(*)', rows='one', **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
@@ -306,12 +326,13 @@ def exists(cursor, table, **kw):
     what -- projection items (str, list or dict, default '*')    
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
+    where_cartpow -- cartesian power of columns ^ values AND clauses, ORed together (tuple ([columns], op, [values]), default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """    
-    assert set(kw.keys()).issubset(set(['what','where','where_or','debug_print','debug_assert'])), 'unknown keyword in exists'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','where_cartpow','debug_print','debug_assert'])), 'unknown keyword in exists'
     return select(cursor, table, limit=1, rows='one', **kw) is not None
 
 
