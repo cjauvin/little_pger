@@ -13,42 +13,29 @@ except ImportError:
 def select(cursor, table, **kw):
     """SQL select statement helper.
 
-    Args:
-       cursor (psycopg2 cursor): a valid cursor
-       table (str): name of the target table
-       
-    Kwargs:
-       what (str, list, dict, default '*'): projection items
+    Mandatory positional arguments:
+    cursor -- the cursor
+    table -- name of the table
 
-    Returns:
-       haha it works!!
+    Optional keyword arguments:
+    what -- projection items (str, list or dict, default '*')    
+      ex1: what='color' --> "select color from .."
+      ex2: what=['color', 'name'] --> "select color, name from .."
+      ex3: what='max(price)' --> "select max(price) from .."
+      ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
+      ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
+    order_by -- order by clause (str or list, default None)
+    group_by -- group by clause (str or list, default None)
+    limit -- limit clause (default None)
+    offset -- offset clause (default None)
+    rows -- all, or one row (default 'all'; if 'one', will assert that len <= 1)
+    debug_print -- print query before executing it (default False)
+    debug_assert -- throw assert exception (showing query), without executing it;
+                    useful for web dev debugging (default False)
     
     """
-    # """SQL select statement helper.
-
-    # Mandatory positional arguments:
-    # cursor -- the cursor
-    # table -- name of the table
-
-    # Optional keyword arguments:
-    # what -- projection items (str, list or dict, default '*')    
-    #   ex1: what='color' --> "select color from .."
-    #   ex2: what=['color', 'name'] --> "select color, name from .."
-    #   ex3: what='max(price)' --> "select max(price) from .."
-    #   ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
-    #   ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
-    # where -- AND-joined where clause dict (default empty)
-    # where_or -- OR-joined where clause dict (default empty)
-    # order_by -- order by clause (str or list, default None)
-    # group_by -- group by clause (str or list, default None)
-    # limit -- limit clause (default None)
-    # offset -- offset clause (default None)
-    # rows -- all, or one row (default 'all'; if 'one', will assert that len <= 1)
-    # debug_print -- print query before executing it (default False)
-    # debug_assert -- throw assert exception (showing query), without executing it;
-    #                 useful for web dev debugging (default False)
-    
-    # """
     assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
     what = kw.pop('what', '*')
     where = kw.pop('where', {})
