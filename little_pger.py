@@ -166,6 +166,7 @@ def insert(cursor, table, **kw):
     Optional keyword arguments:
     values -- dict with values to set (default empty)
     filter_values -- if True, trim values so that it contains only columns found in table (default False)
+    map_values -- dict containing a mapping to be performed on 'values' (e.g. {'': None}, to convert empty strings to nulls)
     return_id -- (potentially unsafe, use with caution) if True, will select the primary key value among the returning clause 
                  elements (assuming it has a "<table>_id" name form if using a dict-like cursor, or that it's 
                  at position 0 otherwise)
@@ -174,7 +175,7 @@ def insert(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['values','filter_values','return_id','debug_print','debug_assert'])), 'unknown keyword in insert'
+    assert set(kw.keys()).issubset(set(['values','filter_values','map_values','return_id','debug_print','debug_assert'])), 'unknown keyword in insert'
     values = kw.pop('values', {})
     return_id = kw.pop('return_id', False)
     if not values:
@@ -183,6 +184,8 @@ def insert(cursor, table, **kw):
         if kw.pop('filter_values', False):
             columns = getColumns(cursor, table)
             values = dict([(c, v) for c, v in values.items() if c in columns])
+        map_values = kw.pop('map_values', {})
+        values =  dict((k, map_values.get(v, v)) for k, v in values.items())
         q = "insert into %s (%s) values (%s) returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))    
     _execQuery(cursor, q, values.values(), **kw)
     returning = cursor.fetchone()
@@ -204,18 +207,21 @@ def update(cursor, table, **kw):
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
     filter_values -- if True, trim values so that it contains only columns found in table (default False)
+    map_values -- dict containing a mapping to be performed on 'values' (e.g. {'': None}, to convert empty strings to nulls)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['set','values','where','where_or','filter_values','debug_print','debug_assert'])), 'unknown keyword in update'
+    assert set(kw.keys()).issubset(set(['set','values','where','where_or','filter_values','map_values','debug_print','debug_assert'])), 'unknown keyword in update'
     values = kw.pop('values', kw.pop('set', None))
     where = kw.pop('where', {})    
     where_or = kw.pop('where_or', {})    
     if kw.pop('filter_values', False):
         columns = getColumns(cursor, table)
         values = dict([(c, v) for c, v in values.items() if c in columns])
+    map_values = kw.pop('map_values', {})
+    values =  dict((k, map_values.get(v, v)) for k, v in values.items())
     q = 'update %s set (%s) = (%s)' % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))
     if where:
         where_clause = _getWhereClause(where.items())
