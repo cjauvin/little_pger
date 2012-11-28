@@ -40,7 +40,6 @@ def select(cursor, table, **kw):
     what = kw.pop('what', '*')
     where = kw.pop('where', {})
     where_or = kw.pop('where_or', {})
-    where_cartpow = kw.pop('where_cartpow', [])
     order_by = kw.pop('order_by', None)
     group_by = kw.pop('group_by', None)
     limit = kw.pop('limit', None)
@@ -237,6 +236,42 @@ def update(cursor, table, **kw):
     return cursor.fetchone()
 
 
+def upsert(cursor, table, **kw):
+    """SQL insert/update statement helper, with a "returning *" clause.
+
+    Mandatory positional arguments:
+    cursor -- the cursor
+    table -- name of the table
+
+    Optional keyword arguments:
+    set|values -- dict with values to set (either keyword works; default empty)
+    where -- AND-joined where clause dict (default empty)
+    where_or -- OR-joined where clause dict (default empty)
+    filter_values -- if True, trim values so that it contains only columns found in table (default False)
+    map_values -- dict containing a mapping to be performed on 'values' (e.g. {'': None}, to convert empty strings to nulls)
+    debug_print -- print query before executing it (default False)
+    debug_assert -- throw assert exception (showing query), without executing it;
+                    useful for web dev debugging (default False)
+
+    """
+    exists_kw = kw.copy()
+    for k in exists_kw.keys():
+        if k not in set(['what','where','where_or','debug_print','debug_assert']):            
+            exists_kw.pop(k)
+    if exists(cursor, table, **exists_kw):
+        for k in kw.keys():
+            if k not in set(['set','values','where','where_or','filter_values','map_values','debug_print','debug_assert']):
+                kw.pop(k)
+        return update(cursor, table, **kw)
+    else:
+        if 'set' in kw: 
+            kw['values'] = kw.pop('set')
+        for k in kw.keys():
+            if k not in set(['values','filter_values','map_values','return_id','debug_print','debug_assert']):
+                kw.pop(k)
+        return insert(cursor, table, **kw)
+
+
 def delete(cursor, table, **kw):
     """SQL delete statement helper.
 
@@ -300,13 +335,12 @@ def exists(cursor, table, **kw):
     what -- projection items (str, list or dict, default '*')    
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
-    where_cartpow -- cartesian power of columns ^ values AND clauses, ORed together (tuple ([columns], op, [values]), default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """    
-    assert set(kw.keys()).issubset(set(['what','where','where_or','where_cartpow','debug_print','debug_assert'])), 'unknown keyword in exists'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','debug_print','debug_assert'])), 'unknown keyword in exists'
     return select(cursor, table, limit=1, rows='one', **kw) is not None
 
 
