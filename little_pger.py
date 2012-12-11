@@ -9,7 +9,7 @@ try:
 except ImportError:
     exit("Problem: the psycopg2 module doesn't seem to be available..")
 
-    
+
 def select(cursor, table, **kw):
     """SQL select statement helper.
 
@@ -18,7 +18,7 @@ def select(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
-    what -- projection items (str, list or dict, default '*')    
+    what -- projection items (str, list or dict, default '*')
       ex1: what='color' --> "select color from .."
       ex2: what=['color', 'name'] --> "select color, name from .."
       ex3: what='max(price)' --> "select max(price) from .."
@@ -35,7 +35,7 @@ def select(cursor, table, **kw):
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
-    
+
     """
     assert set(kw.keys()).issubset(set(['what','join','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
     what = kw.pop('what', '*')
@@ -49,12 +49,12 @@ def select(cursor, table, **kw):
     rows = kw.pop('rows', 'all')
     assert rows in ('all', 'one')
     proj_items = []
-    if what: 
-        if isinstance(what, dict): 
+    if what:
+        if isinstance(what, dict):
             proj_items = ['%s%s' % (w, ' as %s' % n if isinstance(n, basestring) else '') for w, n in what.items()]
         elif isinstance(what, basestring):
             proj_items = [what]
-        else: 
+        else:
             proj_items = list(what)
     if isinstance(table, basestring): table = [table]
     q = "select %s from %s where true " % (', '.join(proj_items), ', '.join(table))
@@ -67,10 +67,10 @@ def select(cursor, table, **kw):
     if where_or:
         where_or_clause = _getWhereClause(where_or.items(), 'or')
         q += ' and (%s)' % where_or_clause
-    if order_by: 
+    if order_by:
         if isinstance(order_by, basestring): q += ' order by %s' % order_by
         else: q += ' order by %s' % ', '.join([e for e in order_by])
-    if group_by: 
+    if group_by:
         if isinstance(group_by, basestring): q += ' group by %s' % group_by
         else: q += ' group by %s' % ', '.join([e for e in group_by])
     if limit: q += ' limit %s' % limit
@@ -99,12 +99,12 @@ def select1(cursor, table, column, **kw):
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
-    """                 
+    """
     assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in select1'
     value = select(cursor, table, what=column, rows='one', **kw)
     if value:
         return value[column if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
-    else: 
+    else:
         return None
 
 
@@ -116,7 +116,7 @@ def select1r(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
-    what -- projection items (str, list or dict, default '*')    
+    what -- projection items (str, list or dict, default '*')
       ex1: what='color' --> "select color from .."
       ex2: what=['color', 'name'] --> "select color, name from .."
       ex3: what='max(price)' --> "select max(price) from .."
@@ -132,7 +132,7 @@ def select1r(cursor, table, **kw):
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
-    """                 
+    """
     assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','debug_print','debug_assert','_count'])), 'unknown keyword in select1r'
     return select(cursor, table, rows='one', **kw)
 
@@ -169,8 +169,8 @@ def insert(cursor, table, **kw):
     values -- dict with values to set (default empty)
     filter_values -- if True, trim values so that it contains only columns found in table (default False)
     map_values -- dict containing a mapping to be performed on 'values' (e.g. {'': None}, to convert empty strings to nulls)
-    return_id -- (potentially unsafe, use with caution) if True, will select the primary key value among the returning clause 
-                 elements (assuming it has a "<table>_id" name form if using a dict-like cursor, or that it's 
+    return_id -- (potentially unsafe, use with caution) if True, will select the primary key value among the returning clause
+                 elements (assuming it has a "<table>_id" name form if using a dict-like cursor, or that it's
                  at position 0 otherwise)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
@@ -188,14 +188,14 @@ def insert(cursor, table, **kw):
             values = dict([(c, v) for c, v in values.items() if c in columns])
         map_values = kw.pop('map_values', {})
         values =  dict((k, map_values.get(v, v)) for k, v in values.items())
-        q = "insert into %s (%s) values (%s) returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))    
+        q = "insert into %s (%s) values (%s) returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))
     _execQuery(cursor, q, values.values(), **kw)
     returning = cursor.fetchone()
     if return_id:
         return returning['%s_id' % table if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
     else:
         return returning
-    
+
 
 def update(cursor, table, **kw):
     """SQL update statement helper, with a "returning *" clause.
@@ -217,8 +217,8 @@ def update(cursor, table, **kw):
     """
     assert set(kw.keys()).issubset(set(['set','values','where','where_or','filter_values','map_values','debug_print','debug_assert'])), 'unknown keyword in update'
     values = kw.pop('values', kw.pop('set', None))
-    where = kw.pop('where', {})    
-    where_or = kw.pop('where_or', {})    
+    where = kw.pop('where', {})
+    where_or = kw.pop('where_or', {})
     if kw.pop('filter_values', False):
         columns = getColumns(cursor, table)
         values = dict([(c, v) for c, v in values.items() if c in columns])
@@ -233,7 +233,7 @@ def update(cursor, table, **kw):
         if where:
             q += ' and (%s)' % where_or_clause
         else:
-            q += ' where %s' % where_or_clause        
+            q += ' where %s' % where_or_clause
     q += ' returning *'
     _execQuery(cursor, q, values.values() + where.values() + where_or.values(), **kw)
     return cursor.fetchone()
@@ -259,7 +259,7 @@ def upsert(cursor, table, **kw):
     """
     exists_kw = kw.copy()
     for k in exists_kw.keys():
-        if k not in set(['what','where','where_or','debug_print','debug_assert']):            
+        if k not in set(['what','where','where_or','debug_print','debug_assert']):
             exists_kw.pop(k)
     if exists(cursor, table, **exists_kw):
         for k in kw.keys():
@@ -267,7 +267,7 @@ def upsert(cursor, table, **kw):
                 kw.pop(k)
         return update(cursor, table, **kw)
     else:
-        if 'set' in kw: 
+        if 'set' in kw:
             kw['values'] = kw.pop('set')
         for k in kw.keys():
             if k not in set(['values','filter_values','map_values','return_id','debug_print','debug_assert']):
@@ -281,7 +281,7 @@ def delete(cursor, table, **kw):
     Mandatory positional arguments:
     cursor -- the cursor
     table -- name of the table
-    
+
     Optional keyword arguments:
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
@@ -322,7 +322,8 @@ def count(cursor, table, **kw):
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
-    """    
+    """
+    kw.pop('what') # if it's there, we can remove it safely, as it won't affect the row count
     assert set(kw.keys()).issubset(set(['join','where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
     row = select(cursor, table, what='count(*)', rows='one', **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
@@ -336,14 +337,14 @@ def exists(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
-    what -- projection items (str, list or dict, default '*')    
+    what -- projection items (str, list or dict, default '*')
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
-    """    
+    """
     assert set(kw.keys()).issubset(set(['what','where','where_or','debug_print','debug_assert'])), 'unknown keyword in exists'
     return select(cursor, table, limit=1, rows='one', **kw) is not None
 
@@ -356,7 +357,7 @@ def getCurrentPKeyValue(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
-    pkey_seq_name -- if None (default), assume that the primary key sequence name has the 
+    pkey_seq_name -- if None (default), assume that the primary key sequence name has the
                      form "<table>_<table>_id_seq"
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
@@ -377,7 +378,7 @@ def getNextPKeyValue(cursor, table, pkey_seq_name=None):
     table -- name of the table
 
     Optional keyword arguments:
-    pkey_seq_name -- if None (default), assume that the primary key sequence name has the 
+    pkey_seq_name -- if None (default), assume that the primary key sequence name has the
                      form "<table>_<table>_id_seq"
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
