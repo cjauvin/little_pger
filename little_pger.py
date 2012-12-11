@@ -24,6 +24,7 @@ def select(cursor, table, **kw):
       ex3: what='max(price)' --> "select max(price) from .."
       ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
       ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
+    join -- AND-joined join clause dict (default empty)
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
     order_by -- order by clause (str or list, default None)
@@ -36,8 +37,9 @@ def select(cursor, table, **kw):
                     useful for web dev debugging (default False)
     
     """
-    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
+    assert set(kw.keys()).issubset(set(['what','join','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
     what = kw.pop('what', '*')
+    join = kw.pop('join', {})
     where = kw.pop('where', {})
     where_or = kw.pop('where_or', {})
     order_by = kw.pop('order_by', None)
@@ -54,16 +56,17 @@ def select(cursor, table, **kw):
             proj_items = [what]
         else: 
             proj_items = list(what)
-    q = "select %s from %s" % (', '.join(proj_items), table)
+    if isinstance(table, basestring): table = [table]
+    q = "select %s from %s where true " % (', '.join(proj_items), ', '.join(table))
+    if join:
+        join_clause = ' and '.join('%s = %s' % (k, v) for k, v in join.items())
+        q += ' and %s ' % join_clause
     if where:
         where_clause = _getWhereClause(where.items())
-        q += " where %s" % where_clause
+        q += " and %s" % where_clause
     if where_or:
         where_or_clause = _getWhereClause(where_or.items(), 'or')
-        if where:
-            q += ' and (%s)' % where_or_clause
-        else:
-            q += ' where %s' % where_or_clause
+        q += ' and (%s)' % where_or_clause
     if order_by: 
         if isinstance(order_by, basestring): q += ' order by %s' % order_by
         else: q += ' order by %s' % ', '.join([e for e in order_by])
@@ -311,6 +314,7 @@ def count(cursor, table, **kw):
     table -- name of the table
 
     Optional keyword arguments:
+    join -- AND-joined join clause dict (default empty)
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
     order_by -- order by clause (str or list, default None)
@@ -319,7 +323,7 @@ def count(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """    
-    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
+    assert set(kw.keys()).issubset(set(['join','where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
     row = select(cursor, table, what='count(*)', rows='one', **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
