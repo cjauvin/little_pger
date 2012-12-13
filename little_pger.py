@@ -4,6 +4,7 @@
 
 """
 
+import collections
 try:
     import psycopg2.extras
 except ImportError:
@@ -187,7 +188,7 @@ def insert(cursor, table, **kw):
             columns = getColumns(cursor, table)
             values = dict([(c, v) for c, v in values.items() if c in columns])
         map_values = kw.pop('map_values', {})
-        values =  dict((k, map_values.get(v, v)) for k, v in values.items())
+        values =  dict((k, map_values.get(v, v) if isinstance(v, collections.Hashable) else v) for k, v in values.items())
         q = "insert into %s (%s) values (%s) returning *" % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))
     _execQuery(cursor, q, values.values(), **kw)
     returning = cursor.fetchone()
@@ -223,7 +224,7 @@ def update(cursor, table, **kw):
         columns = getColumns(cursor, table)
         values = dict([(c, v) for c, v in values.items() if c in columns])
     map_values = kw.pop('map_values', {})
-    values =  dict((k, map_values.get(v, v)) for k, v in values.items())
+    values =  dict((k, map_values.get(v, v) if isinstance(v, collections.Hashable) else v) for k, v in values.items())
     q = 'update %s set (%s) = (%s)' % (table, ','.join(values.keys()), ','.join(['%s' for v in values]))
     if where:
         where_clause = _getWhereClause(where.items())
