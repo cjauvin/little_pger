@@ -16,7 +16,7 @@ def select(cursor, table, **kw):
 
     Mandatory positional arguments:
     cursor -- the cursor
-    table -- name of the table
+    table -- name of the table (str for single table, list or dict for join)
 
     Optional keyword arguments:
     what -- projection items (str, list or dict, default '*')
@@ -57,7 +57,12 @@ def select(cursor, table, **kw):
             proj_items = [what]
         else:
             proj_items = list(what)
-    if isinstance(table, basestring): table = [table]
+    if isinstance(table, dict):
+        table = ['%s %s' % (t, a) for t, a in table.items()]
+    elif isinstance(table, basestring):
+        table = [table]
+    else:
+        table = list(table)
     q = "select %s from %s where true " % (', '.join(proj_items), ', '.join(table))
     if join:
         join_clause = ' and '.join('%s = %s' % (k, v) for k, v in join.items())
