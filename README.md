@@ -1,14 +1,15 @@
 little_PGer.py
 ==============
 
-A small set of functions for conveniently and pythonically wrapping
+~ A small set of functions for conveniently and pythonically wrapping
 SQL commands when you work with Postgres +
-[psycopg2](http://www.initd.org/psycopg/). Of course `psycopg2`
-already does a very fine job as is, but in the context of webapp
-backend development, I often found myself wanting for an
-extra-frictionless way of shuffling around Ajax/JSON data. As I always
-resisted the use of ORMs, I gradually evolved `little_pger`, in that
-purpose.
+[psycopg2](http://www.initd.org/psycopg/) ~
+
+Of course `psycopg2` already does a very fine job as is, but in the
+context of webapp backend development, I often found myself wanting
+for an extra-frictionless way of shuffling around Ajax/JSON data. As I
+always resisted the use of ORMs, I gradually evolved `little_pger`, in
+that purpose.
 
 insert/update
 -------------
