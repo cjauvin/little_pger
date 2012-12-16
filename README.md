@@ -5,8 +5,8 @@ A small set of functions for conveniently and pythonically wrapping
 SQL commands when you work with Postgres +
 [psycopg2](http://www.initd.org/psycopg/).
 
-`insert`/`update`
------------------
+insert/update
+-------------
 
 Suppose you have two SQL tables:
 
@@ -59,10 +59,16 @@ update(cur, 'book', values={'n_pages': 200}, where={'book_id': book_id})
 ```
 
 Note that the `set` and `values` keywords are equivalent when using
-`update`.
+`update`. A handy feature (especially, I found, in the context of an
+Ajax application, where you'd like to shuffle JSON data with the least
+friction possible) is the `filter_values` mechanism, for both `insert`
+and `update`, which will retrieve the table columns to trim the input
+`dict`, only allowing what belongs there. Similarly, the `map_values`
+keyword is a `dict` used to perform the mapping of certain values
+(e.g. `'' -> None`) before `insert`ing them.
 
-`select`
---------
+select
+------
 
 To `select` all books written by a certain author:
 
@@ -132,3 +138,4 @@ for this query. Similarly, this would work in the expected way:
 select(cur, 'book', where={('n_pages', '<='): 200})
 ```
 
+The `what` keyword..
