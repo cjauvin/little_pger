@@ -5,6 +5,9 @@ A small set of functions for conveniently and pythonically wrapping
 SQL commands when you work with Postgres +
 [psycopg2](http://www.initd.org/psycopg/).
 
+`insert`/`update`
+-----------------
+
 Suppose you have two SQL tables:
 
 ```sql
@@ -56,7 +59,12 @@ update(cur, 'book', values={'n_pages': 200}, where={'book_id': book_id})
 ```
 
 Note that the `set` and `values` keywords are equivalent when using
-`update`. To `select` all books written by a certain author:
+`update`.
+
+`select`
+--------
+
+To `select` all books written by a certain author:
 
 ```python
 select(cur, 'book', where={'author_id': 100})
@@ -114,4 +122,13 @@ select * from book where title like '%PG%' and title like '%Fun%'
 which can be a powerful way to implement autocomplete mechanisms, [as
 I explain in more details
 elsewhere](http://cjauvin.blogspot.ca/2012/10/a-tribute-to-unsung-pattern.html).
+Because this example wouldn't make sense with the `=` operator (which
+`where` uses by default), note in passing the use of the `(<column>,
+<operator>)` tuple as a `dict` key (which needs to be hashable, hence
+the need to be a `tuple`) to specify that we want the `like` operator
+for this query. Similarly, this would work in the expected way:
+
+```python
+select(cur, 'book', where={('n_pages', '<='): 200})
+```
 
