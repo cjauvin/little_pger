@@ -138,4 +138,23 @@ for this query. Similarly, this would work in the expected way:
 select(cur, 'book', where={('n_pages', '<='): 200})
 ```
 
-The `what` keyword..
+Until now we have assumed `*` selection, but the `what` keyword allows more
+flexibility:
+
+```python
+select(cur, 'book', what={'*':1, 'title is not null': 'has_title'})
+```
+
+would be translated as
+
+```sql
+select *, title is not null as has_title from book
+```
+
+Similarly:
+
+```python
+select(cur, 'book', what=['author_id', 'count(*)'], group_by='author_id')
+```
+
+demonstrates the `group_by` keyword argument, working as expected.

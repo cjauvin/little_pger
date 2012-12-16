@@ -329,7 +329,7 @@ def count(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    kw.pop('what') # if it's there, we can remove it safely, as it won't affect the row count
+    kw.pop('what', None) # if it's there, we can remove it safely, as it won't affect the row count
     assert set(kw.keys()).issubset(set(['join','where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
     row = select(cursor, table, what='count(*)', rows='one', **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
