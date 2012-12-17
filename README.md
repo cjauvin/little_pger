@@ -1,16 +1,16 @@
 little_PGer.py
 ==============
 
-A lightweight set of functions for conveniently and pythonically
-wrapping SQL commands when you work with Postgres and
-[psycopg2](http://www.initd.org/psycopg/).
+A thin layer just a tad above SQL, for use with Postgres and
+[psycopg2](http://www.initd.org/psycopg/), when you want to wrap
+queries in a convenient way, simply using plain data structures (but
+you don't feel like using a full ORM for some reason).
 
 Of course `psycopg2` already does a very fine job as is, but in the
 context of webapp backend development, I often found myself wanting
-for an extra-frictionless way of shuffling around Ajax/JSON data. As I
-always resisted the use of ORMs, and composing raw SQL queries quickly
-induces string-manipulation fatigue, I gradually evolved
-`little_pger`, in order to help me solve that problem.
+for an extra-frictionless way of shuffling around Ajax/JSON data. As
+composing raw SQL queries quickly induces string-manipulation fatigue,
+I gradually evolved `little_pger` for that simple purpose.
 
 insert/update/upsert
 --------------------
@@ -57,9 +57,8 @@ conn.commit()
 As shown above, `insert` and `update` by default return a `dict`
 record. However, `insert` has a convenient `return_id` keyword
 argument, which means that only the `id` of the newly created record
-(typically the primary key as an integer) will be returned (instead of
-the whole record), assuming the corresponding field is named
-`<table>_id`:
+(typically the primary key) will be returned (instead of the whole
+record), assuming the corresponding field is named `<table>_id`:
 
 ```python
 book_id = insert(cur, 'book', values={'title':'PG is Fun!'}, return_id=True)
@@ -68,12 +67,12 @@ update(cur, 'book', values={'n_pages': 200}, where={'book_id': book_id})
 
 Note that the `set` and `values` keywords are equivalent when using
 `update`. A handy feature is the `filter_values` mechanism, for both
-`insert` and `update`, which will retrieve the table columns to trim
-the input `dict`, only allowing what belongs there, according to the
-table schema. Similarly, the `map_values` keyword is a `dict` used to
-perform the mapping of certain values (e.g. `'' -> None`) before
-`insert`ing them. There's also an non-standard `upsert` function,
-which works as expected:
+`insert` and `update`, which will retrieve the table columns from the
+schema to trim the input `dict`, only allowing what belongs
+there. Similarly, the `map_values` keyword is a `dict` used to perform
+the mapping of certain values (e.g. `'' -> None`) before `insert`ing
+them. There's also an non-standard `upsert` function, which works as
+expected:
 
 ```python
 book = upsert(cur, 'book', set={'title':'PG is Fun!'}, where={'author_id': 100})
@@ -149,8 +148,8 @@ this would work in the expected way:
 select(cur, 'book', where={('n_pages', '<='): 200})
 ```
 
-Until now we have assumed `*` selection, but the `what` keyword allows more
-flexibility:
+Until now we have assumed `*` selection, but the `what` keyword allows
+for more flexibility:
 
 ```python
 select(cur, 'book', what={'*':1, 'title is not null': 'has_title'})
@@ -175,8 +174,8 @@ tables can also be inner joined easily:
 select(cur, 'book', {'book': 'b', 'author': 'a'}, join={'b.author_id': 'a.author_id'})
 ```
 
-Finally, `little_pger` offers a bunch of other functions, in similar ways as the
-ones described above:
+Finally, `little_pger` offers a bunch of other functions, working in
+ways similar to the ones described above:
 
 ```python
 selectId # directly returns the id, using the pkey_name argument or assuming <table_id>
