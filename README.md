@@ -3,14 +3,14 @@ little_PGer.py
 
 A thin layer just a tad above SQL, for use with Postgres and
 [psycopg2](http://www.initd.org/psycopg/), when you want to wrap
-queries in a convenient way, simply using plain data structures (but
-you don't feel like using a full ORM for some reason).
+queries in a convenient way, using plain data structures (but you
+don't feel like using an ORM, for some reason).
 
-Of course `psycopg2` already does a very fine job as is, but in the
-context of webapp backend development, I often found myself wanting
-for an extra-frictionless way of shuffling around Ajax/JSON data. As
-composing raw SQL queries quickly induces string-manipulation fatigue,
-I gradually evolved `little_pger` for that simple purpose.
+Of course `psycopg2` already does a very fine job on its own, but in
+the context of webapp backend development, I often found myself
+wanting for an extra-frictionless way of shuffling around Ajax/JSON
+data. As composing raw SQL queries quickly induces string-manipulation
+fatigue, I gradually evolved `little_pger` for that simple purpose.
 
 insert/update/upsert
 --------------------
