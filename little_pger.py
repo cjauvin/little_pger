@@ -444,13 +444,19 @@ def _flatten(values):
     return v
 
 
+# returns a triple: (field, comp_operator, value placeholder)
 def _getWhereClauseCompItem(c, v):
     if isinstance(c, tuple):
-        assert len(c) == 2
-        return c
+        assert len(c) in [2, 3]
+        if len(c) == 2:
+            # (field, comp_operator, value placeholder)
+            return c + ('%s',)
+        elif len(c) == 3:
+            # (field, comp_operator, transformed value placeholder)
+            return ('%s(%s)' % (c[2], c[0]), c[1], '%s(%%s)' % c[2])
     if isinstance(v, tuple):
-        return (c, 'in')
-    return (c, '=')
+        return (c, 'in', '%s')
+    return (c, '=', '%s')
 
 
 def _getWhereClause(items, type='and'):
@@ -458,10 +464,10 @@ def _getWhereClause(items, type='and'):
     wc = []
     for c, v in items:
         if isinstance(v, set):
-            sub_wc = ' and '.join(['%s %s %%s' % _getWhereClauseCompItem(c, vv) for vv in v])
+            sub_wc = ' and '.join(['%s %s %s' % _getWhereClauseCompItem(c, vv) for vv in v])
             wc.append('(%s)' % sub_wc)
         else:
-            wc.append('%s %s %%s' % _getWhereClauseCompItem(c, v))
+            wc.append('%s %s %s' % _getWhereClauseCompItem(c, v))
     return (" %s " % type).join(wc)
 
 
