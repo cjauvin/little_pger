@@ -38,7 +38,7 @@ def select(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['what','join','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert','_count'])), 'unknown keyword in select'
+    assert set(kw.keys()).issubset(set(['what','join','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert'])), 'unknown keyword in select'
     what = kw.pop('what', '*')
     join = kw.pop('join', {})
     where = kw.pop('where', {})
@@ -139,7 +139,7 @@ def select1r(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','debug_print','debug_assert','_count'])), 'unknown keyword in select1r'
+    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','debug_print','debug_assert'])), 'unknown keyword in select1r'
     return select(cursor, table, rows='one', **kw)
 
 
@@ -330,7 +330,7 @@ def count(cursor, table, **kw):
 
     """
     kw.pop('what', None) # if it's there, we can remove it safely, as it won't affect the row count
-    assert set(kw.keys()).issubset(set(['join','where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
+    assert set(kw.keys()).issubset(set(['what','join','where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
     row = select(cursor, table, what='count(*)', rows='one', **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
@@ -485,7 +485,7 @@ def _execQuery(cursor, query, qvalues=[], **kw):
     query = "set transform_null_equals to on; " + query
     qvalues = _flatten(qvalues)
     if kw.get('debug_print', False):
-        print cursor.mogrify(query, qvalues)
+        print cursor.mogrify(query if isinstance(query, str) else query.encode('utf8'), qvalues)
     if kw.get('debug_assert', False):
-        assert False, cursor.mogrify(query, qvalues)
+        assert False, cursor.mogrify(query if isinstance(query, str) else query.encode('utf8'), qvalues)
     cursor.execute(query, qvalues)
