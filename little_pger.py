@@ -100,13 +100,14 @@ def select1(cursor, table, column, **kw):
     column -- name of the column
 
     Optional keyword arguments:
+    join -- AND-joined join clause dict (default empty)
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
     """
-    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in select1'
+    assert set(kw.keys()).issubset(set(['join','where','where_or','debug_print','debug_assert'])), 'unknown keyword in select1'
     value = select(cursor, table, what=column, rows='one', **kw)
     if value:
         return value[column if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
@@ -128,6 +129,7 @@ def select1r(cursor, table, **kw):
       ex3: what='max(price)' --> "select max(price) from .."
       ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
       ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
+    join -- AND-joined join clause dict (default empty)
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
     order_by -- order by clause (str or list, default None)
@@ -139,7 +141,7 @@ def select1r(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['what','where','where_or','order_by','group_by','limit','offset','debug_print','debug_assert'])), 'unknown keyword in select1r'
+    assert set(kw.keys()).issubset(set(['what','join','where','where_or','order_by','group_by','limit','offset','debug_print','debug_assert'])), 'unknown keyword in select1r'
     return select(cursor, table, rows='one', **kw)
 
 
