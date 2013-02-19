@@ -28,8 +28,8 @@ def select(cursor, table, **kw):
     join -- AND-joined join clause dict (default empty)
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
-    order_by -- order by clause (str or list, default None)
     group_by -- group by clause (str or list, default None)
+    order_by -- order by clause (str or list, default None)
     limit -- limit clause (default None)
     offset -- offset clause (default None)
     rows -- all, or one row (default 'all'; if 'one', will assert that len <= 1)
@@ -73,12 +73,12 @@ def select(cursor, table, **kw):
     if where_or:
         where_or_clause = _getWhereClause(where_or.items(), 'or')
         q += ' and (%s)' % where_or_clause
-    if order_by:
-        if isinstance(order_by, basestring): q += ' order by %s' % order_by
-        else: q += ' order by %s' % ', '.join([e for e in order_by])
     if group_by:
         if isinstance(group_by, basestring): q += ' group by %s' % group_by
         else: q += ' group by %s' % ', '.join([e for e in group_by])
+    if order_by:
+        if isinstance(order_by, basestring): q += ' order by %s' % order_by
+        else: q += ' order by %s' % ', '.join([e for e in order_by])
     if limit: q += ' limit %s' % limit
     if offset: q += ' offset %s' % offset
     _execQuery(cursor, q, where.values() + where_or.values(), **kw)
@@ -132,8 +132,8 @@ def select1r(cursor, table, **kw):
     join -- AND-joined join clause dict (default empty)
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
-    order_by -- order by clause (str or list, default None)
     group_by -- group by clause (str or list, default None)
+    order_by -- order by clause (str or list, default None)
     limit -- limit clause (default None)
     offset -- offset clause (default None)
     debug_print -- print query before executing it (default False)
