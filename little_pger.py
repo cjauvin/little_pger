@@ -293,12 +293,14 @@ def delete(cursor, table, **kw):
     Optional keyword arguments:
     where -- AND-joined where clause dict (default empty)
     where_or -- OR-joined where clause dict (default empty)
+    tighten_sequence -- if True, will decrement the pkey sequence when deleting the latest row,
+                        and has no effect otherwise (default False)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['where','where_or','debug_print','debug_assert'])), 'unknown keyword in delete'
+    assert set(kw.keys()).issubset(set(['where','where_or','tighten_sequence','debug_print','debug_assert'])), 'unknown keyword in delete'
     where = kw.pop('where', {})
     where_or = kw.pop('where_or', {})
     q = "delete from %s" % table
@@ -311,6 +313,12 @@ def delete(cursor, table, **kw):
             q += ' and (%s)' % where_or_clause
         else:
             q += ' where %s' % where_or_clause
+    if kw.pop('tighten_sequence', False):
+        pkey_name = getPKeyColumn(cursor, table)
+        # here we assume that the pkey sequence name is 'table_pkey_seq', which it will be if
+        # it was created implicitly; idea taken from: http://stackoverflow.com/a/244265/787842
+        if pkey_name:
+            q+= "; select setval('%s_%s_seq', coalesce((select max(%s) + 1 from %s), 1), false)" % (table, pkey_name, pkey_name, table)
     _execQuery(cursor, q, where.values() + where_or.values(), **kw)
 
 
@@ -378,7 +386,7 @@ def getCurrentPKeyValue(cursor, table, **kw):
     return cursor.fetchone()['currval' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
 
-def getNextPKeyValue(cursor, table, pkey_seq_name=None):
+def getNextPKeyValue(cursor, table, **kw):
     """Next value of the primary key.
 
     Mandatory positional arguments:
@@ -432,6 +440,19 @@ def getColumns(cursor, table):
     """
     cursor.execute('select * from %s where 1=0' % table)
     return [rec[0] for rec in cursor.description]
+
+
+# http://wiki.postgresql.org/wiki/Retrieve_primary_key_columns
+def getPKeyColumn(cursor, table):
+    cursor.execute("""
+        select pg_attribute.attname as pkey_name
+        from pg_index, pg_class, pg_attribute
+        where
+           pg_class.oid = %s::regclass and indrelid = pg_class.oid and
+           pg_attribute.attrelid = pg_class.oid and
+           pg_attribute.attnum = any(pg_index.indkey) and indisprimary;
+    """, [table])
+    return (cursor.fetchone() or {}).get('pkey_name')
 
 
 ################################################################################
