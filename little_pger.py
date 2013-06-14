@@ -33,22 +33,25 @@ def select(cursor, table, **kw):
     limit -- limit clause (default None)
     offset -- offset clause (default None)
     rows -- all, or one row (default 'all'; if 'one', will assert that len <= 1)
+    get_count -- wrap the entire query inside a select count(*) outer query (default False)
     debug_print -- print query before executing it (default False)
     debug_assert -- throw assert exception (showing query), without executing it;
                     useful for web dev debugging (default False)
 
     """
-    assert set(kw.keys()).issubset(set(['what','join','where','where_or','order_by','group_by','limit','offset','rows','debug_print','debug_assert'])), 'unknown keyword in select'
+    assert set(kw.keys()).issubset(set(['what','join','where','where_or','order_by','group_by',
+                                        'limit','offset','rows','get_count','debug_print','debug_assert'])), 'unknown keyword in select'
     what = kw.pop('what', '*')
     join = kw.pop('join', {})
-    where = kw.pop('where', {})
-    where_or = kw.pop('where_or', {})
+    where = kw.pop('where', {}).copy() # need a copy because we might pop an 'exists' item
+    where_or = kw.pop('where_or', {}).copy() # idem
     order_by = kw.pop('order_by', None)
     group_by = kw.pop('group_by', None)
     limit = kw.pop('limit', None)
     offset = kw.pop('offset', None)
     rows = kw.pop('rows', 'all')
     assert rows in ('all', 'one')
+    get_count = kw.pop('get_count', False)
     proj_items = []
     if what:
         if isinstance(what, dict):
@@ -70,9 +73,11 @@ def select(cursor, table, **kw):
     if where:
         where_clause = _getWhereClause(where.items())
         q += " and %s" % where_clause
+        where.pop('exists', None)
     if where_or:
         where_or_clause = _getWhereClause(where_or.items(), 'or')
         q += ' and (%s)' % where_or_clause
+        where_or.pop('exists', None)
     if group_by:
         if isinstance(group_by, basestring): q += ' group by %s' % group_by
         else: q += ' group by %s' % ', '.join([e for e in group_by])
@@ -81,6 +86,9 @@ def select(cursor, table, **kw):
         else: q += ' order by %s' % ', '.join([e for e in order_by])
     if limit: q += ' limit %s' % limit
     if offset: q += ' offset %s' % offset
+    if get_count:
+        q = 'select count(*) from (%s) _' % q
+        rows = 'one'
     _execQuery(cursor, q, where.values() + where_or.values(), **kw)
     results = cursor.fetchall()
     if rows == 'all':
@@ -339,9 +347,12 @@ def count(cursor, table, **kw):
                     useful for web dev debugging (default False)
 
     """
-    kw.pop('what', None) # if it's there, we can remove it safely, as it won't affect the row count
-    assert set(kw.keys()).issubset(set(['what','join','where','where_or','debug_print','debug_assert'])), 'unknown keyword in count'
-    row = select(cursor, table, what='count(*)', rows='one', **kw)
+    assert set(kw.keys()).issubset(set(['what','join','where','where_or','group_by','debug_print','debug_assert'])), 'unknown keyword in count'
+    if kw.get('group_by', None) is None:
+        kw.pop('what', None) # if it's there, we can remove it safely, as it won't affect the row count
+        row = select(cursor, table, what='count(*)', rows='one', **kw)
+    else:
+        row = select(cursor, table, get_count=True, **kw)
     return row['count' if cursor.__class__ in [psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor] else 0]
 
 
@@ -486,7 +497,10 @@ def _getWhereClause(items, type='and'):
     assert type in ('and', 'or')
     wc = []
     for c, v in items:
-        if isinstance(v, set):
+        if c == 'exists':
+            assert isinstance(v, basestring)
+            wc.append('exists (%s)' % v)
+        elif isinstance(v, set):
             sub_wc = ' and '.join(['%s %s %s' % _getWhereClauseCompItem(c, vv) for vv in v])
             wc.append('(%s)' % sub_wc)
         else:
