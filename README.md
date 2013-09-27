@@ -12,6 +12,14 @@ wanting for an extra-frictionless way of shuffling around Ajax/JSON
 data. As composing raw SQL queries quickly induces string-manipulation
 fatigue, I gradually evolved `little_pger` for that simple purpose.
 
+installation
+------------
+
+```$ pip install little_pger```
+
+Note that `psycopg2` will be automatically installed if it isn't
+already.
+
 insert/update/upsert
 --------------------
 
