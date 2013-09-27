@@ -1,4 +1,4 @@
-little_PGer.py
+Little_PGer.py
 ==============
 
 A thin layer just a tad above SQL, for use with Postgres and
@@ -12,15 +12,22 @@ wanting for an extra-frictionless way of shuffling around Ajax/JSON
 data. As composing raw SQL queries quickly induces string-manipulation
 fatigue, I gradually evolved `little_pger` for that simple purpose.
 
-installation
-------------
+If you want to know more about it, I have also discussed its use in
+some particular contexts, on my blog:
+
+* <http://cjauvin.blogspot.com/2012/10/a-tribute-to-unsung-pattern.html>
+
+* <http://cjauvin.blogspot.com/2013/04/impossibly-lean-access-control-with.html>
+
+To Install
+----------
 
 ```$ pip install little_pger```
 
 Note that `psycopg2` will be automatically installed if it isn't
 already.
 
-insert/update/upsert
+Insert/update/upsert
 --------------------
 
 Suppose you have two SQL tables:
@@ -86,7 +93,7 @@ expected:
 book = upsert(cur, 'book', set={'title':'PG is Fun!'}, where={'author_id': 100})
 ```
 
-select
+Select
 ------
 
 To `select` all books written by a certain author:
