@@ -321,13 +321,12 @@ def delete(cursor, table, **kw):
             q += ' and (%s)' % where_or_clause
         else:
             q += ' where %s' % where_or_clause
+    ts_vals = []
     if kw.pop('tighten_sequence', False):
-        pkey_name = getPKeyColumn(cursor, table)
-        # here we assume that the pkey sequence name is 'table_pkey_seq', which it will be if
-        # it was created implicitly; idea taken from: http://stackoverflow.com/a/244265/787842
-        if pkey_name:
-            q+= "; select setval('%s_%s_seq', coalesce((select max(%s) + 1 from %s), 1), false)" % (table, pkey_name, pkey_name, table)
-    _execQuery(cursor, q, where.values() + where_or.values(), **kw)
+        pkey_col = getPKeyColumn(cursor, table)
+        q += "; select setval(%%s, coalesce((select max(%s) + 1 from %s), 1), false)" % (pkey_col, table)
+        ts_vals = [get_pkey_sequence(cursor, table)]
+    _execQuery(cursor, q, where.values() + where_or.values() + ts_vals, **kw)
 
 
 def count(cursor, table, **kw):
@@ -464,6 +463,17 @@ def getPKeyColumn(cursor, table):
            pg_attribute.attnum = any(pg_index.indkey) and indisprimary;
     """, [table])
     return (cursor.fetchone() or {}).get('pkey_name')
+
+
+def get_pkey_sequence(cursor, table):
+    cursor.execute("""
+        select pg_get_serial_sequence(%s, a.attname) seq_name
+        from pg_index i, pg_class c, pg_attribute a
+        where
+           c.oid = %s::regclass and indrelid = c.oid and
+           a.attrelid = c.oid and a.attnum = any(i.indkey) and indisprimary;
+    """, [table, table])
+    return (cursor.fetchone() or {}).get('seq_name')
 
 
 ################################################################################
