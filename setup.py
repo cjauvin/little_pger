@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = 'little_pger',
-    version = '0.5',
+    version = '0.65',
     author = 'Christian Jauvin',
     author_email = 'cjauvin@gmail.com',
     description = ("A thin layer just a tad above SQL, for use with PostgreSQL and psycopg2, when you want to wrap queries "
