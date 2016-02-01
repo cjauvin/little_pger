@@ -2,11 +2,12 @@ from setuptools import setup
 
 setup(
     name = 'little_pger',
-    version = '0.66',
+    version = '0.7',
     author = 'Christian Jauvin',
     author_email = 'cjauvin@gmail.com',
-    description = ("A thin layer just a tad above SQL, for use with PostgreSQL and psycopg2, when you want to wrap queries "
-                   "in a convenient way, using plain data structures (but you don't feel like using an ORM, for some reason)."),
+    description = (
+        "A thin layer just a tad above SQL, for use with PostgreSQL and psycopg2, when you want to wrap queries "
+        "in a convenient way, using plain data structures (but you don't feel like using an ORM, for some reason)."),
     license = 'BSD',
     keywords = 'postgresql psycopg2 sql',
     url = 'https://github.com/cjauvin/little_pger',

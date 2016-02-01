@@ -1,5 +1,4 @@
-Little_PGer.py
-==============
+# Little_PGer.py
 
 A thin layer just a tad above SQL, for use with Postgres and
 [psycopg2](http://www.initd.org/psycopg/), when you want to wrap
@@ -19,124 +18,181 @@ some particular contexts, on my blog:
 
 * <http://cjauvin.blogspot.com/2013/04/impossibly-lean-access-control-with.html>
 
-To Install
-----------
+## To install
 
-```$ pip install little_pger```
+    $ pip install little_pger
+
+or
+
+    $ pip install -e -e git+git@github.com:cjauvin/little_pger.git#egg=little_pger
 
 Note that `psycopg2` will be automatically installed if it isn't
 already.
 
-Insert/update/upsert
---------------------
+## Testing it with this README document
 
-Suppose you have two SQL tables:
+Note that this `README.md` file can be executed as a test. To do so,
+simply create a simple database (that you can destroy afterward):
 
-```sql
-create table book (
-    book_id serial primary key,
-    author_id int,
-    title text,
-    n_pages int,
-    topics text[]
-);
+    $ createdb little_pger_test
 
-create table author (
-    author_id serial primary key,
-    name text
-);
-```
+And then simply execute the script with:
 
-and a pair of `RealDict`-based `psycopg2` `connection`/`cursor`:
+    $ python -m doctest -f -v README.md
 
-```python
-conn = psycopg2.connect("dbname=...",
-                        connection_factory=psycopg2.extras.RealDictConnection)
-cur = conn.cursor()
-```
+Let's go!
+
+    >>> from little_pger import LittlePGer
+
+The first and mandatory parameter to a `LittlePGer` object is
+either a connection string or a `psycopg2` connection object. Note
+that in order for the user-less connection string below to work, you
+will have either to create a PG user corresponding to your current OS
+user, or add a `user=whatever` clause to the string.
+
+`little_pger` can be used in two ways. The first is as a context
+manager, which implies that the transaction is encapsulated under the
+`with` statement (with a `rollback` or `commit` performed
+automatically at exit):
+
+    >>> with LittlePGer(conn="dbname=little_pger_test", commit=False) as pg:
+    ...     _ = pg.pg_version # (9, 5, 0) for me, perhaps not for you
+
+You can also use it without the context manager:
+
+    >>> pg = LittlePGer(conn="dbname=little_pger_test", commit=False)
+    >>> _ = pg.pg_version # (9, 5, 0) for me, perhaps not for you
+
+in which case you are in charge of managing the transaction
+yourself. In this document we will not use the context manager because
+it makes things easier to follow.
+
+## Insert and update
+
+Suppose we have two SQL tables:
+
+    >>> pg.sql("""
+    ...     create table book (
+    ...         book_id serial primary key,
+    ...         author_id int,
+    ...         title text,
+    ...         n_pages int,
+    ...         topics text[]
+    ...     )
+    ... """)
+    >>> pg.sql("""
+    ...     create table author (
+    ...         author_id serial primary key,
+    ...         name text
+    ...      )
+    ... """)
 
 you can `insert` and `update` a new `book` record:
 
-```python
-book = insert(cur, 'book', values={'title': 'PG is Fun!'})
-book = update(cur, 'book', set={'n_pages': 200}, where={'title': 'PG is Fun!'})
-```
-
-Note that you are always responsible for managing the transaction when
-you are done:
-
-```python
-conn.commit()
-```
+    >>> book = pg.insert('book', values={'title': 'PG is Fun!'})
+    >>> joe = pg.insert('author', values={'name': 'Joe Foo', 'author_id': 100})
+    >>> book = pg.update(
+    ...     'book', set={'author_id': joe['author_id'], 'n_pages': 200},
+    ...     where={'book_id': book['book_id']}
+    ... )
+    >>> sorted(book.items()) # just to clamp the field order
+    [('author_id', 100), ('book_id', 1), ('n_pages', 200), ('title', 'PG is Fun!'), ('topics', None)]
 
 As shown above, `insert` and `update` by default return a `dict`
 record. However, `insert` has a convenient `return_id` keyword
-argument, which means that only the `id` of the newly created record
-(typically the primary key) will be returned (instead of the whole
-record), assuming the corresponding field is named `<table>_id`:
+argument, which means that only the primary key value of the newly
+created record wille be returned:
 
-```python
-book_id = insert(cur, 'book', values={'title':'PG is Fun!'}, return_id=True)
-update(cur, 'book', values={'n_pages': 200}, where={'book_id': book_id})
-```
+    >>> book_id = pg.insert(
+    ...     'book', values={'title': 'Python and PG, a Love Story'},
+    ...     return_id=True
+    ... )
+    >>> book_id
+    2
 
-Note that the `set` and `values` keywords are equivalent when using
-`update`. A handy feature is the `filter_values` mechanism, for both
-`insert` and `update`, which will retrieve the table columns from the
-schema to trim the input `dict`, only allowing what belongs
-there. Similarly, the `map_values` keyword is a `dict` used to perform
-the mapping of certain values (e.g. `'' -> None`) before `insert`ing
-them. There's also an non-standard `upsert` function, which works as
-expected:
+    >>> _ = pg.update('book', values={'n_pages': 450}, where={'book_id': book_id})
 
-```python
-book = upsert(cur, 'book', set={'title':'PG is Fun!'}, where={'author_id': 100})
-```
+## Upsert
 
-Select
-------
+Even though `upsert` only appeared recently (with PG 9.5),
+`little_pger` supports it for every version of PG, with a "fake
+implementation" (i.e. check existence, then insert or update
+accordingly) in the cases where it is not natively supported (and when
+it is, a "real implementation is used). Both implementations are
+simplified versions where the primary key is implicitly used to
+determine uniqueness.
 
-To `select` all books written by a certain author:
+    >>> book_id = pg.upsert('book', set={'title': 'A Boring Story'}, return_id=True)
+    >>> book = pg.upsert('book', values={'n_pages': 123, 'book_id': book_id})
+    >>> book_id, book['book_id']
+    (3, 3)
 
-```python
-select(cur, 'book', where={'author_id': 100})
-```
+## Select
 
-which will return a list of `dict` records, as expected. If a unique
-match is expected
+To `select` all books:
 
-```python
-book = select1r(cur, 'book', where={'author_id': 100})
-title = select1(cur, 'book', 'title', where={'author_id': 100})
-```
+    >>> books = pg.select('book')
+    >>> len(books)
+    3
 
-will both throw an exception if more than one rows are
-retrieved. Using a `tuple` value in the `where` clause:
+or a particular book:
 
-```python
-select(cur, 'book', where={'author_id': (100, 200, 300)})
-```
+    >>> books = pg.select('book', where={'book_id': book_id})
+    >>> len(books)
+    1
+
+or:
+
+    >>> book = pg.select1('book', where={'book_id': book_id})
+    >>> type(book)
+    <class 'psycopg2.extras.RealDictRow'>
+
+It's easy to (inner) join books and authors:
+
+    >>> book = pg.select1(
+    ...     'book', join='author',
+    ...     where={'book_id': 1}
+    ... )
+    >>> sorted(book.items()) # just to clamp the field order
+    [('author_id', 100), ('book_id', 1), ('n_pages', 200), ('name', 'Joe Foo'), ('title', 'PG is Fun!'), ('topics', None)]
+
+or left join them:
+
+    >>> book_author = pg.select1(
+    ...     'book', left_join='author',
+    ...     where={'book_id': 2}
+    ... )
+    >>> sorted(book_author.items()) # just to clamp the field order
+    [('author_id', None), ('book_id', 2), ('n_pages', 450), ('name', None), ('title', 'Python and PG, a Love Story'), ('topics', None)]
+
+Using a `tuple` value in the `where` clause:
+
+    >>> books = pg.select('book', where={'book_id': (1, 2, 3)})
+    >>> len(books)
+    3
 
 translates to a SQL query using the `in` operator:
 
-```sql
-select * from book where author_id in (100, 200, 300)
-```
+    select * from book where book_id in (1, 2, 3)
 
 Make sure that you do not use `tuple`s and `list`s interchangeably
-when working with `psycopg2` and `little_pger`, as a `list` is used
-for a very different purpose as
+when working with `psycopg2` and `little_pger`, as they are used for
+very different purposes. Python arrays translate into PG arrays (note
+that the `book.topics` column has type `text[]`):
 
-```python
-select(cur, 'book', where={'topics': ['database', 'programming']})
-```
+    >>> book = pg.update(
+    ...     'book', set={'topics': ['database', 'programming']},
+    ...     where={'book_id': 1}
+    ... )
+    >>> book['topics']
+    ['database', 'programming']
 
-translates to this Postgres `array`-based query (note that the
-`topics` column above is `text[]`, not `text`):
+    >>> pg.delete('book', where={'book_id': book_id}, tighten_sequence=True)
+    >>> pg.count('book')
+    2
 
-```sql
-select * from book where topics = '{database, programming}'
-```
+    >>> pg.exists('book', where={'book_id': book_id})
+    False
 
 While we're at it, using a `set` (instead of a `tuple` or a `dict`)
 will result in a third type of semantics, as
