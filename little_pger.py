@@ -124,7 +124,7 @@ class LittlePGer(object):
 
         Mandatory positional arguments:
         cursor -- the cursor
-        table -- name of the table (str for single table, list or dict for join)
+        table -- name of the table
 
         Optional keyword arguments:
         what -- projection items (str, list or dict, default '*')
@@ -133,7 +133,7 @@ class LittlePGer(object):
           ex3: what='max(price)' --> "select max(price) from .."
           ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
           ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
-        [inner_]join -- either: table, (table, field1, field2) or (table, field) (or list of those)
+        [inner_]join -- either: table `str` or (table, field) `tuple`, (or list of those)
         left_join -- similar to join
         right_join -- similar to join
         where -- AND-joined where clause dict (default empty)
@@ -256,7 +256,7 @@ class LittlePGer(object):
           ex3: what='max(price)' --> "select max(price) from .."
           ex4: what={'*':True, 'price is null':'is_price_valid'} --> "select *, price is null as is_price_valid from .."
           ex5: what=['age', 'count(*)'], group_by='age' --> "select age, count(*) from .. group by age"
-        [inner_]join -- table name, dict of {table -> joining} field, list of (table, field, field)'s
+        [inner_]join -- either: table `str` or (table, field) `tuple`, (or list of those)
         left_join -- similar to join
         right_join -- similar to join
         where -- AND-joined where clause dict (default empty)
@@ -521,7 +521,7 @@ class LittlePGer(object):
         table -- name of the table
 
         Optional keyword arguments:
-        [inner_]join -- table name, dict of {table -> joining} field, list of (table, field, field)'s
+        [inner_]join -- either: table `str` or (table, field) `tuple`, (or list of those)
         left_join -- similar to join
         right_join -- similar to join
         left_join -- .. (default empty)
