@@ -138,6 +138,17 @@ determine uniqueness.
     >>> book_id, book['book_id']
     (3, 3)
 
+`insert`, `update` and `upsert` all have a convenient `filter_values`
+parameter which, if used, will filter the fields of the `values` dict
+to remove any item that doesn't belong to the target table. Without it
+here, an exception would be thrown, as the `book` table does not have
+a `publisher` column:
+
+    >>> _ = pg.upsert(
+    ...     'book', filter_values=True,
+    ...      values={'book_id': book_id, 'publisher': 'Joe North'}
+    ... )
+
 ## Select
 
 To `select` all books:
