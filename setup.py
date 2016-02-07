@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = 'little_pger',
-    version = '1.0a',
+    version = '1.0',
     author = 'Christian Jauvin',
     author_email = 'cjauvin@gmail.com',
     description = (
@@ -18,8 +18,7 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python',
         'Topic :: Utilities'
     ],
     install_requires = ['psycopg2']
