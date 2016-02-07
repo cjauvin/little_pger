@@ -139,10 +139,10 @@ determine uniqueness.
     (3, 3)
 
 `insert`, `update` and `upsert` all have a convenient `filter_values`
-parameter which, if used, will filter the fields of the `values` dict
-to remove any item that doesn't belong to the target table. Without it
-here, an exception would be thrown, as the `book` table does not have
-a `publisher` column:
+parameter which, if used, will remove any item in the `values` dict
+that doesn't belong to the target table. Without it here, an exception
+would be thrown, as the `book` table does not have a `publisher`
+column:
 
     >>> _ = pg.upsert(
     ...     'book', filter_values=True,
