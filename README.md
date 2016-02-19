@@ -42,7 +42,10 @@ so, simply create a dummy database (that you can destroy afterward):
 
 and set this variable appropriately for your setup:
 
-    >>> pg_user = '' # an empty string works when the OS and PG users share the same name
+```python
+>>> pg_user = '' # an empty string works when the OS and PG users share the same name
+
+```
 
 Then simply execute the script with:
 
@@ -50,7 +53,10 @@ Then simply execute the script with:
 
 Let's go!
 
-    >>> from little_pger import LittlePGer
+```python
+>>> from little_pger import LittlePGer
+
+```
 
 The first and mandatory parameter to a `LittlePGer` object is a
 connection, either as a string or as a `psycopg2` object (resulting
@@ -59,14 +65,20 @@ ways. The first is as a context manager, which implies that the
 transaction is encapsulated under the `with` statement (with a
 `rollback` or `commit` performed automatically at exit):
 
-    >>> conn_str = 'dbname=little_pger_test user={}'.format(pg_user)
-    >>> with LittlePGer(conn=conn_str, commit=False) as pg:
-    ...     _ = pg.pg_version # (9, 5, 0) for me, perhaps not for you
+```python
+>>> conn_str = 'dbname=little_pger_test user={}'.format(pg_user)
+>>> with LittlePGer(conn=conn_str, commit=False) as pg:
+...     _ = pg.pg_version # (9, 5, 0) for me, perhaps not for you
+
+```
 
 You can also use it without the context manager:
 
-    >>> pg = LittlePGer(conn=conn_str, commit=False)
-    >>> _ = pg.pg_version # (9, 5, 0) for me, perhaps not for you
+```python
+>>> pg = LittlePGer(conn=conn_str, commit=False)
+>>> _ = pg.pg_version # (9, 5, 0) for me, perhaps not for you
+
+```
 
 in which case you are in charge of managing the transaction
 yourself. In this document we will not use the context manager because
@@ -76,47 +88,59 @@ it makes things easier on the eyes.
 
 Suppose we have two SQL tables:
 
-    >>> pg.sql("""
-    ...     create table book (
-    ...         book_id serial primary key,
-    ...         author_id int,
-    ...         title text,
-    ...         n_pages int,
-    ...         topics text[]
-    ...     )
-    ... """)
+```python
+>>> pg.sql("""
+...     create table book (
+...         book_id serial primary key,
+...         author_id int,
+...         title text,
+...         n_pages int,
+...         topics text[]
+...     )
+... """)
 
-    >>> pg.sql("""
-    ...     create table author (
-    ...         author_id serial primary key,
-    ...         name text
-    ...      )
-    ... """)
+>>> pg.sql("""
+...     create table author (
+...         author_id serial primary key,
+...         name text
+...      )
+... """)
+
+```
 
 you can `insert` a new `book`, along with its `author`:
 
-    >>> book = pg.insert('book', values={'title': 'PG is Fun!'})
-    >>> author = pg.insert('author', values={'name': 'Joe Foo', 'author_id': 100})
+```python
+>>> book = pg.insert('book', values={'title': 'PG is Fun!'})
+>>> author = pg.insert('author', values={'name': 'Joe Foo', 'author_id': 100})
+
+```
 
 and `update` it:
 
-    >>> book = pg.update(
-    ...     'book', set={'author_id': author['author_id'], 'n_pages': 200},
-    ...     where={'book_id': book['book_id']}
-    ... )
-    >>> sorted(book.items()) # just to clamp the field order
-    [('author_id', 100), ('book_id', 1), ('n_pages', 200), ('title', 'PG is Fun!'), ('topics', None)]
+```python
+>>> book = pg.update(
+...     'book', set={'author_id': author['author_id'], 'n_pages': 200},
+...     where={'book_id': book['book_id']}
+... )
+>>> sorted(book.items()) # just to clamp the field order
+[('author_id', 100), ('book_id', 1), ('n_pages', 200), ('title', 'PG is Fun!'), ('topics', None)]
+
+```
 
 As shown above, `insert` and `update` by default return a `dict`
 record. However, `insert` has a convenient `return_id` keyword
 argument, which means that the primary key value of the newly
 created record should be returned directly:
 
-    >>> pg.insert(
-    ...     'book', values={'title': 'Python and PG, a Love Story'},
-    ...     return_id=True
-    ... )
-    2
+```python
+>>> pg.insert(
+...     'book', values={'title': 'Python and PG, a Love Story'},
+...     return_id=True
+... )
+2
+
+```
 
 ## Upsert
 
@@ -128,15 +152,18 @@ it is, a "real" implementation is used). Both implementations are
 simplified versions where the primary key is implicitly used to
 determine uniqueness.
 
-    >>> # does not yet exist, will be created
-    >>> book_id = pg.upsert('book', set={'title': 'A Boring Story'}, return_id=True)
-    >>> book_id
-    3
+```python
+>>> # does not yet exist, will be created
+>>> book_id = pg.upsert('book', set={'title': 'A Boring Story'}, return_id=True)
+>>> book_id
+3
 
-    >>> # already exists, will be updated
-    >>> book = pg.upsert('book', values={'n_pages': 123, 'book_id': book_id})
-    >>> book_id, book['book_id']
-    (3, 3)
+>>> # already exists, will be updated
+>>> book = pg.upsert('book', values={'n_pages': 123, 'book_id': book_id})
+>>> book_id, book['book_id']
+(3, 3)
+
+```
 
 `insert`, `update` and `upsert` all have a convenient `filter_values`
 parameter which, if used, will remove any item in the `values` dict
@@ -144,90 +171,120 @@ that doesn't belong to the target table. Without it here, an exception
 would be thrown, as the `book` table does not have a `publisher`
 column:
 
-    >>> _ = pg.upsert(
-    ...     'book', filter_values=True,
-    ...      values={'book_id': book_id, 'publisher': 'Joe North'}
-    ... )
+```python
+>>> _ = pg.upsert(
+...     'book', filter_values=True,
+...      values={'book_id': book_id, 'publisher': 'Joe North'}
+... )
+
+```
 
 ## Select
 
 To `select` all books:
 
-    >>> books = pg.select('book')
-    >>> len(books)
-    3
+```python
+>>> books = pg.select('book')
+>>> len(books)
+3
+
+```
 
 or a particular book:
 
-    >>> books = pg.select('book', where={'book_id': book_id})
-    >>> len(books)
-    1
+```python
+>>> books = pg.select('book', where={'book_id': book_id})
+>>> len(books)
+1
+
+```
 
 or:
 
-    >>> book = pg.select1('book', where={'book_id': book_id})
-    >>> type(book)
-    <class 'psycopg2.extras.RealDictRow'>
+```python
+>>> book = pg.select1('book', where={'book_id': book_id})
+>>> type(book)
+<class 'psycopg2.extras.RealDictRow'>
+
+```
 
 It's easy to (inner) join books and authors:
 
-    >>> book = pg.select1(
-    ...     'book', join='author',
-    ...     where={'book_id': 1}
-    ... )
-    >>> sorted(book.items()) # just to clamp the field order
-    [('author_id', 100), ('book_id', 1), ('n_pages', 200), ('name', 'Joe Foo'), ('title', 'PG is Fun!'), ('topics', None)]
+```python
+>>> book = pg.select1(
+...     'book', join='author', where={'book_id': 1}
+... )
+>>> sorted(book.items()) # just to clamp the field order
+[('author_id', 100), ('book_id', 1), ('n_pages', 200), ('name', 'Joe Foo'), ('title', 'PG is Fun!'), ('topics', None)]
+
+```
 
 or left join them:
 
-    >>> book_author = pg.select1(
-    ...     'book', left_join='author',
-    ...     where={'book_id': 2}
-    ... )
-    >>> sorted(book_author.items()) # just to clamp the field order
-    [('author_id', None), ('book_id', 2), ('n_pages', None), ('name', None), ('title', 'Python and PG, a Love Story'), ('topics', None)]
+```python
+>>> book_author = pg.select1(
+...     'book', left_join='author', where={'book_id': 2}
+... )
+>>> sorted(book_author.items()) # just to clamp the field order
+[('author_id', None), ('book_id', 2), ('n_pages', None), ('name', None), ('title', 'Python and PG, a Love Story'), ('topics', None)]
+
+```
 
 Using a `tuple` value in the `where` clause:
 
-    >>> books = pg.select('book', where={'book_id': (1, 2, 3)})
-    >>> len(books)
-    3
+```python
+>>> books = pg.select('book', where={'book_id': (1, 2, 3)})
+>>> len(books)
+3
+
+```
 
 translates to a SQL query using the `in` operator:
 
-    select * from book where book_id in (1, 2, 3)
+```sql
+select * from book where book_id in (1, 2, 3)
+```
 
 Make sure that you do not use `tuple`s and `list`s interchangeably
 when working with `psycopg2` and `little_pger`, as they are used for
 very different purposes. Python arrays translate into PG arrays (note
 that the `book.topics` column has type `text[]`):
 
-    >>> book = pg.update(
-    ...     'book', set={'topics': ['database', 'programming']},
-    ...     where={'book_id': 1}
-    ... )
-    >>> book['topics']
-    ['database', 'programming']
+```python
+>>> book = pg.update(
+...     'book', set={'topics': ['database', 'programming']},
+...     where={'book_id': 1}
+... )
+>>> book['topics']
+['database', 'programming']
 
-You can use other operators than `=` like this:
+```
 
-    >>> books = pg.select('book', where={('book_id', '<='): 2})
-    >>> len(books)
-    2
+You can use operators other than `=`, like this:
+
+```python
+>>> books = pg.select('book', where={('book_id', '<='): 2})
+>>> len(books)
+2
+
+```
 
 Using a `set` (instead of a `tuple` or a `list`) will result in a
 third type of semantics:
 
-    >>> pg.select1(
-    ...     'book',
-    ...      where={('title', 'like'): {'%PG%', '%Fun%'}}
-    ... )['title']
-    'PG is Fun!'
+```python
+>>> pg.select1(
+...     'book', where={('title', 'like'): {'%PG%', '%Fun%'}}
+... )['title']
+'PG is Fun!'
+
+```
 
 which translates to:
 
-    select * from book where title like '%PG%' and title like '%Fun%'
-
+```sql
+select * from book where title like '%PG%' and title like '%Fun%'
+```
 
 which can be a powerful way to implement an autocomplete mechanism,
 [as I explain in more details elsewhere](http://cjauvin.blogspot.ca/2012/10/a-tribute-to-unsung-pattern.html).
@@ -235,44 +292,52 @@ which can be a powerful way to implement an autocomplete mechanism,
 Until now we have assumed `*` selection, but the `what` keyword allows
 for more flexibility:
 
-    >>> res = pg.select(
-    ...     'book',
-    ...     what={'*':1, 'title is not null': 'has_title'}
-    ... )
-    >>> [book['has_title'] for book in res]
-    [True, True, True]
+```python
+>>> res = pg.select(
+...     'book', what={'*':1, 'title is not null': 'has_title'}
+... )
+>>> [book['has_title'] for book in res]
+[True, True, True]
+
+```
 
 Similarly:
 
-    >>> res = pg.select(
-    ...     'book', left_join='author',
-    ...      what=['name', 'count(*)'],
-    ...      group_by='name', order_by='count desc'
-    ... )
-    >>> res[0]['name'], int(res[0]['count'])
-    (None, 2)
-    >>> res[1]['name'], int(res[1]['count'])
-    ('Joe Foo', 1)
+```python
+>>> res = pg.select(
+...     'book', left_join='author',
+...      what=['name', 'count(*)'],
+...      group_by='name', order_by='count desc'
+... )
+>>> res[0]['name'], int(res[0]['count'])
+(None, 2)
+>>> res[1]['name'], int(res[1]['count'])
+('Joe Foo', 1)
 
-`little_pger` offers a couple of other functions: `delete`, `count`,
-`exists`, etc.
+```
 
 ## Delete
 
-Finally, the `delete` function includes an option to "tighten" the
-primary key sequence, in other words to make sure that if you delete a
-row with some ID that is the maximum one currently existing, it will
-be reused the next time you create a new row (in other words: it
-prevents "gaps" in the ID sequences).
+The `delete` function includes an option to "tighten" the
+primary key sequence, to make sure that if you delete a row with some
+ID that is the maximum one currently existing, it will be reused the
+next time you create a new row (in other words: it prevents "gaps" in
+the ID sequences).
 
 Without `tighten_sequence`:
 
-    >>> pg.delete('book', where={'book_id': 3})
-    >>> pg.insert('book', return_id=True)
-    4
+```python
+>>> pg.delete('book', where={'book_id': 3})
+>>> pg.insert('book', return_id=True)
+4
+
+```
 
 With it:
 
-    >>> pg.delete('book', where={'book_id': 4}, tighten_sequence=True)
-    >>> pg.insert('book', return_id=True)
-    3
+```python
+>>> pg.delete('book', where={'book_id': 4}, tighten_sequence=True)
+>>> pg.insert('book', return_id=True)
+3
+
+```
