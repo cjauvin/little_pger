@@ -3,7 +3,7 @@
 .. moduleauthor:: Christian Jauvin <cjauvin@gmail.com>
 
 """
-from __future__ import division, print_function
+from __future__ import division, print_function, unicode_literals
 import collections
 from pkg_resources import get_distribution
 import psycopg2.extras
