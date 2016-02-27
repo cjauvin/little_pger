@@ -208,9 +208,9 @@ class LittlePGer(object):
                         t, f = e
                         q += ' %s join %s using (%s)' % (join_type, t, f)
                     else:
-                        raise LittlePGerError('wrong data type for select `join`: can only be str or 2/3 tuples, or a list of those')
+                        raise LittlePGerError('wrong data type for `join`: can only be table_as_str, a (table_as_str, field_as_str) tuple, or a list of those')
                 else:
-                    raise LittlePGerError('wrong data type for select `join`: can only be str or 2/3 tuples, or a list of those')
+                    raise LittlePGerError('wrong data type for `join`: can only be table_as_str, a (table_as_str, field_as_str) tuple, or a list of those')
 
         q += ' where true '
 
