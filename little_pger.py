@@ -87,8 +87,7 @@ class LittlePGer(object):
         self._table_infos = {}  # name -> TableInfos
         self._to_commit = commit
         self.pg_version = self.get_pg_version()
-        v = self.pg_version
-        if v[0] > 9 or (v[0] >= 9 and v[1] >= 5):
+        if self.pg_version >= (9, 5):
             self._upsert_impl = self._real_upsert
         else:
             self._upsert_impl = self._fake_upsert
@@ -116,7 +115,7 @@ class LittlePGer(object):
         self.cursor.execute('select version() as ver')
         rec = self.cursor.fetchone()
         return tuple(
-            [int(d) for d in re.search('PostgreSQL (\d+)[.](\d+)[.](\d+)', rec['ver']).groups()]  # noqa
+            [int(d) for d in re.search('PostgreSQL ([0-9.]+)', rec['ver']).group(1).split('.')]  # noqa
         )
 
     def select(self, table, **kw):
