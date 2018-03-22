@@ -380,7 +380,11 @@ class LittlePGer(object):
             k: (map_values.get(v, v) if isinstance(v, collections.Hashable) else v)
             for k, v in values.items()
         }
-        q = 'update {table} set ({fields}) = ({placeholders})'
+        # This is needed for PG >= 10
+        if len(values) > 1:
+            q = 'update {table} set ({fields}) = ({placeholders})'
+        else:
+            q = 'update {table} set {fields} = {placeholders}'
         q = q.format(
             table=table,
             fields=','.join(values.keys()),
