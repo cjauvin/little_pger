@@ -121,8 +121,7 @@ class LittlePGer(object):
     def select(self, table, **kw):
         """SQL select statement helper.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -244,8 +243,7 @@ class LittlePGer(object):
     def select1(self, table, **kw):
         """SQL select statement helper (syntactic sugar for single row select call).
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -279,8 +277,7 @@ class LittlePGer(object):
     def select_id(self, table, **kw):
         """SQL select statement helper (fetch primary key value, assuming only one row).
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -301,8 +298,7 @@ class LittlePGer(object):
     def insert(self, table, **kw):
         """SQL insert statement helper, by default with a "returning *" clause.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -350,8 +346,7 @@ class LittlePGer(object):
     def update(self, table, **kw):
         """SQL update statement helper, with a "returning *" clause.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -407,14 +402,12 @@ class LittlePGer(object):
     def upsert(self, table, **kw):
         """SQL insert/update statement helper, with a "returning *" clause.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
         set|values -- dict with values to set (either keyword works; default empty)
         filter_values -- if True, trim values so that it contains only columns found in table (default False)
-        conflict_column -- if specified, will be the column against which any conflict is determined (if not, the primary key is used)
         map_values -- dict containing a mapping to be performed on 'values' (e.g. {'': None}, to convert empty strings to nulls)
         debug_print -- print query before executing it (default False)
         debug_assert -- throw assert exception (showing query), without executing it;
@@ -480,8 +473,7 @@ class LittlePGer(object):
     def delete(self, table, **kw):
         """SQL delete statement helper.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -519,8 +511,7 @@ class LittlePGer(object):
     def count(self, table, **kw):
         """SQL select count statement helper.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -550,8 +541,7 @@ class LittlePGer(object):
     def exists(self, table, **kw):
         """Check whether at least one record exists.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -578,8 +568,7 @@ class LittlePGer(object):
     def get_columns(self, table):
         """Return all columns.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         """
@@ -602,7 +591,6 @@ class LittlePGer(object):
         """(Internal, should not be used) Execute a query.
 
         Mandatory positional arguments:
-        cursor -- the cursor
         query -- query string (with %%s value placeholders if needed)
         qvalues -- query value list (default empty)
 
@@ -635,8 +623,7 @@ class LittlePGer(object):
     def get_current_pkey_value(self, table, **kw):
         """Current value of the primary key.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -657,8 +644,7 @@ class LittlePGer(object):
     def get_next_pkey_value(self, table, **kw):
         """Next value of the primary key.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
@@ -679,8 +665,7 @@ class LittlePGer(object):
     def get_nullable_columns(self, table, **kw):
         """Return all nullable columns.
 
-        Mandatory positional arguments:
-        cursor -- the cursor
+        Mandatory positional argument:
         table -- name of the table
 
         Optional keyword arguments:
