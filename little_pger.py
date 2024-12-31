@@ -3,15 +3,10 @@
 .. moduleauthor:: Christian Jauvin <cjauvin@gmail.com>
 
 """
-from __future__ import division, print_function, unicode_literals
-import collections
-from pkg_resources import get_distribution
+from collections import namedtuple
+from collections.abc import Hashable
 import psycopg2.extras
 import re
-from six import string_types
-
-
-__version__ = get_distribution('little_pger').version
 
 
 # Helper functions
@@ -46,7 +41,7 @@ def _get_where_clause(items, type_='and'):
     wc = []
     for c, v in items:
         if c == 'exists':
-            assert isinstance(v, string_types)
+            assert isinstance(v, str)
             wc.append('exists (%s)' % v)
         elif isinstance(v, set):
             sub_wc = ' and '.join(['%s %s %s' % _get_where_clause_comp_item(c, vv) for vv in v])  # noqa
@@ -64,7 +59,7 @@ def _check_args(func_name, args, allowed_args):
     return True
 
 
-TableInfos = collections.namedtuple(
+TableInfos = namedtuple(
     'TableInfo',
     ['pkey', 'columns']
 )
@@ -77,7 +72,7 @@ class LittlePGerError(Exception):
 class LittlePGer(object):
 
     def __init__(self, conn, commit=False):
-        if isinstance(conn, string_types):
+        if isinstance(conn, str):
             self.conn = psycopg2.connect(conn)
         else:
             self.conn = conn
@@ -170,10 +165,10 @@ class LittlePGer(object):
         if what:
             if isinstance(what, dict):
                 proj_items = [
-                    '%s%s' % (w, ' as %s' % n if isinstance(n, string_types) else '')
+                    '%s%s' % (w, ' as %s' % n if isinstance(n, str) else '')
                     for w, n in what.items()
                 ]
-            elif isinstance(what, string_types):
+            elif isinstance(what, str):
                 proj_items = [what]
             else:
                 proj_items = list(what)
@@ -184,7 +179,7 @@ class LittlePGer(object):
         # else:
         #     table = list(table)
         # q = "select %s from %s " % (', '.join(proj_items), ', '.join(table))
-        assert isinstance(table, string_types)
+        assert isinstance(table, str)
         q = "select {proj} from {table} ".format(
             proj=', '.join(proj_items),
             table=table
@@ -195,7 +190,7 @@ class LittlePGer(object):
             if not join_elem:
                 continue
             for e in (join_elem if isinstance(join_elem, list) else [join_elem]):
-                if isinstance(e, string_types):
+                if isinstance(e, str):
                     pkey = self.get_table_infos(e.split()[0]).pkey # split()[0] in case of a 'bla b' pattern
                     q += ' %s join %s using (%s)' % (join_type, e, pkey)
                 elif isinstance(e, tuple):
@@ -221,10 +216,10 @@ class LittlePGer(object):
             q += ' and (%s)' % where_or_clause
             where_or.pop('exists', None)
         if group_by:
-            if isinstance(group_by, string_types): q += ' group by %s' % group_by
+            if isinstance(group_by, str): q += ' group by %s' % group_by
             else: q += ' group by %s' % ', '.join([e for e in group_by])
         if order_by:
-            if isinstance(order_by, string_types): q += ' order by %s' % order_by
+            if isinstance(order_by, str): q += ' order by %s' % order_by
             else: q += ' order by %s' % ', '.join([e for e in order_by])
         if limit: q += ' limit %s' % limit
         if offset: q += ' offset %s' % offset
@@ -327,7 +322,7 @@ class LittlePGer(object):
                 values = {c: v for c, v in values.items() if c in columns}
             map_values = kw.pop('map_values', {})
             values =  {
-                k: (map_values.get(v, v) if isinstance(v, collections.Hashable) else v)
+                k: (map_values.get(v, v) if isinstance(v, Hashable) else v)
                 for k, v in values.items()
             }
             q = "insert into {table} ({fields}) values ({values}) returning *"
@@ -372,7 +367,7 @@ class LittlePGer(object):
             values = {c: v for c, v in values.items() if c in columns}
         map_values = kw.pop('map_values', {})
         values =  {
-            k: (map_values.get(v, v) if isinstance(v, collections.Hashable) else v)
+            k: (map_values.get(v, v) if isinstance(v, Hashable) else v)
             for k, v in values.items()
         }
         # This is needed for PG >= 10
@@ -444,9 +439,8 @@ class LittlePGer(object):
                 if pkey in values and not values[pkey]:
                     del values[pkey]
             map_values = kw.pop('map_values', {})
-            H = collections.Hashable
             values = {
-                k: map_values.get(v, v) if isinstance(v, H) else v
+                k: map_values.get(v, v) if isinstance(v, Hashable) else v
                 for k, v in values.items()
             }
             fields = ','.join(values.keys())
