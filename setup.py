@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = 'little_pger',
-    version = '1.0.3',
+    version = '1.0.4',
     author = 'Christian Jauvin',
     author_email = 'cjauvin@gmail.com',
     description = (
@@ -21,5 +21,5 @@ setup(
         'Programming Language :: Python',
         'Topic :: Utilities'
     ],
-    install_requires = ['psycopg2-binary', 'six']
+    install_requires = ['psycopg2-binary']
 )
