@@ -51,6 +51,18 @@ def _get_where_clause(items, type_='and'):
     return (" %s " % type_).join(wc)
 
 
+# Column names (keys of `values`) are inserted as is in the query: only
+# plain identifiers are accepted
+_IDENTIFIER_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+
+
+def _check_columns(values):
+    for c in values:
+        if not isinstance(c, str) or not _IDENTIFIER_RE.fullmatch(c):
+            raise LittlePGerError('invalid column name: %r' % (c,))
+    return values
+
+
 def _check_args(func_name, args, allowed_args):
     if not set(args) <= set(allowed_args):
         s = 'unexpected keyword argument(s) in {}: {}'
@@ -91,7 +103,8 @@ class LittlePGer(object):
         return LittlePGer(self.conn, self._to_commit)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self._to_commit:
+        # never commit a partial transaction when an exception was raised
+        if self._to_commit and exc_type is None:
             self.commit()
             # print('commit')
         else:
@@ -221,8 +234,9 @@ class LittlePGer(object):
         if order_by:
             if isinstance(order_by, str): q += ' order by %s' % order_by
             else: q += ' order by %s' % ', '.join([e for e in order_by])
-        if limit: q += ' limit %s' % limit
-        if offset: q += ' offset %s' % offset
+        # limit and offset are inserted as is in the query: they must be ints
+        if limit: q += ' limit %d' % int(limit)
+        if offset: q += ' offset %d' % int(offset)
         if get_count:
             q = 'select count(*) from (%s) _' % q
             rows = 'one'
@@ -314,17 +328,18 @@ class LittlePGer(object):
         ))
         values = kw.pop('values', {})
         return_id = kw.pop('return_id', False)
+        if kw.pop('filter_values', False):
+            columns = self.get_table_infos(table).columns
+            values = {c: v for c, v in values.items() if c in columns}
+        map_values = kw.pop('map_values', {})
+        values = {
+            k: (map_values.get(v, v) if isinstance(v, Hashable) else v)
+            for k, v in _check_columns(values).items()
+        }
+        # (values may be empty only after filtering)
         if not values:
             q = "insert into %s default values returning *" % table
         else:
-            if kw.pop('filter_values', False):
-                columns = self.get_table_infos(table).columns
-                values = {c: v for c, v in values.items() if c in columns}
-            map_values = kw.pop('map_values', {})
-            values =  {
-                k: (map_values.get(v, v) if isinstance(v, Hashable) else v)
-                for k, v in values.items()
-            }
             q = "insert into {table} ({fields}) values ({values}) returning *"
             q = q.format(
                 table=table,
@@ -357,18 +372,21 @@ class LittlePGer(object):
         """
         _check_args('update', kw.keys(), (
             'set', 'values', 'where', 'where_or', 'filter_values',
-            'map_values', 'debug_print','debug_assert'
+            'map_values', 'all_rows', 'debug_print','debug_assert'
         ))
         values = kw.pop('values', kw.pop('set', {}))
         where = kw.pop('where', {})
         where_or = kw.pop('where_or', {})
+        if not (where or where_or or kw.pop('all_rows', False)):
+            raise LittlePGerError('update without where clause: use all_rows=True to update all rows')
+        kw.pop('all_rows', None)
         if kw.pop('filter_values', False):
             columns = self.get_table_infos(table).columns
             values = {c: v for c, v in values.items() if c in columns}
         map_values = kw.pop('map_values', {})
         values =  {
             k: (map_values.get(v, v) if isinstance(v, Hashable) else v)
-            for k, v in values.items()
+            for k, v in _check_columns(values).items()
         }
         # This is needed for PG >= 10
         if len(values) > 1:
@@ -418,7 +436,7 @@ class LittlePGer(object):
         values = kw.pop('values', kw.pop('set', {}))
         kw['values'] = values
         pkey = self.get_table_infos(table).pkey
-        if pkey in values and select1(cursor, table, where={pkey: values[pkey]}):
+        if pkey in values and self.select1(table, where={pkey: values[pkey]}):
             kw['values'] = values
             kw['where'] = {pkey: values[pkey]}
             return self.update(table, **kw)
@@ -441,7 +459,7 @@ class LittlePGer(object):
             map_values = kw.pop('map_values', {})
             values = {
                 k: map_values.get(v, v) if isinstance(v, Hashable) else v
-                for k, v in values.items()
+                for k, v in _check_columns(values).items()
             }
             fields = ','.join(values.keys())
             vals = ','.join(['%s' for _ in values])
@@ -481,10 +499,13 @@ class LittlePGer(object):
 
         """
         _check_args('delete', kw.keys(), (
-            'where','where_or','tighten_sequence','debug_print','debug_assert'
+            'where','where_or','tighten_sequence','all_rows','debug_print','debug_assert'
         ))
         where = kw.pop('where', {})
         where_or = kw.pop('where_or', {})
+        if not (where or where_or or kw.pop('all_rows', False)):
+            raise LittlePGerError('delete without where clause: use all_rows=True to delete all rows')
+        kw.pop('all_rows', None)
         q = "delete from %s" % table
         if where:
             where_clause = _get_where_clause(where.items())
